@@ -19,6 +19,8 @@ const LEAD_LABEL: Record<number, string> = {
 
 export interface JoinValues {
   firstName: string
+  email: string
+  phone: string
   treatmentId: string
   days: number[]
   timeFrom: string
@@ -45,6 +47,8 @@ export function JoinForm({
 
   const [values, setValues] = useState<JoinValues>({
     firstName: '',
+    email: '',
+    phone: '',
     treatmentId: treatments[0]?.id ?? '',
     days: [today, tomorrow].sort((a, b) => a - b),
     timeFrom: '09:00',
@@ -118,6 +122,8 @@ export function JoinForm({
 
       const order: (keyof JoinValues)[] = [
         'firstName',
+        'email',
+        'phone',
         'treatmentId',
         'days',
         'timeFrom',
@@ -146,6 +152,42 @@ export function JoinForm({
             autoComplete="given-name"
             value={values.firstName}
             onChange={(event) => set('firstName', event.target.value)}
+          />
+        )}
+      </Field>
+
+      <Field
+        id="email"
+        label="Je e-mailadres"
+        hint="Hiermee laten we je weten dat er een plek vrij is. Je hoeft geen account te maken."
+        error={errors.email}
+      >
+        {(props) => (
+          <TextInput
+            {...props}
+            data-veld="email"
+            type="email"
+            autoComplete="email"
+            value={values.email}
+            onChange={(event) => set('email', event.target.value)}
+          />
+        )}
+      </Field>
+
+      <Field
+        id="telefoon"
+        label="Je telefoonnummer"
+        hint="Mag je leeg laten."
+        error={errors.phone}
+      >
+        {(props) => (
+          <TextInput
+            {...props}
+            data-veld="phone"
+            type="tel"
+            autoComplete="tel"
+            value={values.phone}
+            onChange={(event) => set('phone', event.target.value)}
           />
         )}
       </Field>

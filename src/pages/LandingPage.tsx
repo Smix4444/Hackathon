@@ -7,7 +7,7 @@ import { DEMO_SLUG } from '../config'
 const STEPS = [
   {
     title: 'De klant zet zich op de wachtlijst',
-    text: 'Scannen, voornaam, behandeling, wanneer je kan. Geen account.',
+    text: 'Scannen, voornaam, e-mailadres en wanneer je kan. Geen account nodig.',
   },
   {
     title: 'De salon geeft een plek vrij',

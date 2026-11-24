@@ -58,6 +58,8 @@ export interface WaitlistEntry {
   salon_id: string
   treatment_id: string
   first_name: string
+  email: string | null
+  phone: string | null
   days: number[]
   time_from: string
   time_to: string

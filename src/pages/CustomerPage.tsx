@@ -108,6 +108,8 @@ export function CustomerPage() {
         salonSlug: slug,
         treatmentId: values.treatmentId,
         firstName: values.firstName,
+        email: values.email,
+        phone: values.phone,
         days: values.days,
         timeFrom: values.timeFrom,
         timeTo: values.timeTo,

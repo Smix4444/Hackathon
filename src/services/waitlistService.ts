@@ -22,6 +22,8 @@ export interface JoinPayload {
   salonSlug: string
   treatmentId: string
   firstName: string
+  email: string
+  phone: string
   days: number[]
   timeFrom: string
   timeTo: string
@@ -40,6 +42,8 @@ export async function joinWaitlist(payload: JoinPayload): Promise<string> {
     p_to: payload.timeTo,
     p_lead: payload.leadMinutes,
     p_token: payload.token,
+    p_email: payload.email,
+    p_phone: payload.phone === '' ? null : payload.phone,
   })
   if (error) throw error
   return data as string

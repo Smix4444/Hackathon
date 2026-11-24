@@ -11,26 +11,43 @@
 --   2. Vaste klanten krijgen korting in plaats van voorrang.
 --   3. Nieuwe kortingstreden: binnen 2 uur -20%, binnen 1 uur -30%,
 --      binnen 30 minuten -40%.
+--   4. Klanten geven een e-mailadres en eventueel een telefoonnummer op.
+--   5. Klanten kunnen hun eigen afspraak afzeggen; de plek komt dan
+--      meteen weer vrij voor de wachtlijst.
 -- =========================================================
 
 -- Nieuwe saloninstelling: hoeveel korting een vaste klant krijgt.
 alter table public.salons
   add column if not exists vip_discount_pct int not null default 10;
 
+-- Contactgegevens van de klant. Geen account nodig.
+alter table public.waitlist_entries add column if not exists email text;
+alter table public.waitlist_entries add column if not exists phone text;
+
 do $do$
 begin
-  if not exists (
-    select 1 from pg_constraint where conname = 'salons_vip_discount_pct_check'
-  ) then
+  if not exists (select 1 from pg_constraint where conname = 'salons_vip_discount_pct_check') then
     alter table public.salons
-      add constraint salons_vip_discount_pct_check
-      check (vip_discount_pct between 0 and 50);
+      add constraint salons_vip_discount_pct_check check (vip_discount_pct between 0 and 50);
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname = 'waitlist_entries_email_check') then
+    alter table public.waitlist_entries
+      add constraint waitlist_entries_email_check
+      check (email is null or (char_length(email) between 5 and 120 and position('@' in email) > 1));
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname = 'waitlist_entries_phone_check') then
+    alter table public.waitlist_entries
+      add constraint waitlist_entries_phone_check
+      check (phone is null or char_length(btrim(phone)) between 6 and 20);
   end if;
 end $do$;
 
 -- Functies die niet meer bestaan of van vorm veranderd zijn.
 drop function if exists public._offer_next(uuid);
 drop function if exists public.update_salon_settings(text, int, boolean, int);
+drop function if exists public.join_waitlist(text, uuid, text, smallint[], time, time, int, uuid);
 
 create or replace function public.price_for(p_base int, p_starts timestamptz, p_discount boolean)
 returns int language sql stable set search_path = public as $$
@@ -216,7 +233,8 @@ end $$;
 
 create or replace function public.join_waitlist(
   p_salon_slug text, p_treatment uuid, p_first_name text, p_days smallint[],
-  p_from time, p_to time, p_lead int, p_token uuid)
+  p_from time, p_to time, p_lead int, p_token uuid,
+  p_email text default null, p_phone text default null)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare v_salon uuid; v_entry uuid; v_slot uuid;
 begin
@@ -227,9 +245,10 @@ begin
   end if;
 
   insert into public.waitlist_entries
-    (salon_id, treatment_id, first_name, days, time_from, time_to, lead_minutes)
+    (salon_id, treatment_id, first_name, days, time_from, time_to, lead_minutes, email, phone)
   values
-    (v_salon, p_treatment, btrim(p_first_name), p_days, p_from, p_to, p_lead)
+    (v_salon, p_treatment, btrim(p_first_name), p_days, p_from, p_to, p_lead,
+     nullif(btrim(coalesce(p_email, '')), ''), nullif(btrim(coalesce(p_phone, '')), ''))
   returning id into v_entry;
 
   insert into public.entry_tokens (entry_id, token_hash)
@@ -278,6 +297,44 @@ begin
     n := n + 1;
   end loop;
   return n;
+end $$;
+
+create or replace function public.cancel_booking(p_entry uuid, p_token uuid)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  e public.waitlist_entries%rowtype;
+  s public.slots%rowtype;
+begin
+  if not public._token_ok(p_entry, p_token) then raise exception 'NOT_YOUR_ENTRY'; end if;
+
+  select * into e from public.waitlist_entries where id = p_entry for update;
+  if not found or e.status <> 'booked' then raise exception 'NO_BOOKING'; end if;
+
+  select * into s from public.slots
+  where filled_by_entry_id = p_entry and status = 'filled'
+  order by starts_at limit 1
+  for update;
+
+  if not found            then raise exception 'NO_BOOKING'; end if;
+  if s.starts_at <= now() then raise exception 'SLOT_IN_PAST'; end if;
+
+  update public.slots set
+    status = 'free', released_at = now(), filled_by_entry_id = null,
+    filled_treatment_id = null, filled_at = null,
+    final_price_cents = null, final_duration_min = null, current_offer_id = null
+  where id = s.id;
+
+  update public.waitlist_entries set status = 'left' where id = p_entry;
+
+  insert into public.events (salon_id, type, slot_id, entry_id, message)
+  values (s.salon_id, 'released', s.id, p_entry,
+          format('%s zegde zelf af voor %s', e.first_name, public._fmt_time(s.starts_at)));
+
+  if public._offer_all(s.id) = 0 then
+    perform public._log_no_match(s.id);
+    return 'free';
+  end if;
+  return 'offered';
 end $$;
 
 create or replace function public.update_salon_settings(
@@ -352,47 +409,6 @@ begin
     (v_salon, t_brush, 'Lien',  array[v_tmr_dow], '13:00', '18:00', 30, false, true, now() - interval '5 hours');
 end $$;
 
--- Klant zegt zijn eigen afspraak af. De plek komt meteen weer vrij en
--- gaat opnieuw naar iedereen op de wachtlijst die past.
-create or replace function public.cancel_booking(p_entry uuid, p_token uuid)
-returns text language plpgsql security definer set search_path = public as $$
-declare
-  e public.waitlist_entries%rowtype;
-  s public.slots%rowtype;
-begin
-  if not public._token_ok(p_entry, p_token) then raise exception 'NOT_YOUR_ENTRY'; end if;
-
-  select * into e from public.waitlist_entries where id = p_entry for update;
-  if not found or e.status <> 'booked' then raise exception 'NO_BOOKING'; end if;
-
-  select * into s from public.slots
-  where filled_by_entry_id = p_entry and status = 'filled'
-  order by starts_at limit 1
-  for update;
-
-  if not found            then raise exception 'NO_BOOKING'; end if;
-  if s.starts_at <= now() then raise exception 'SLOT_IN_PAST'; end if;
-
-  update public.slots set
-    status = 'free', released_at = now(), filled_by_entry_id = null,
-    filled_treatment_id = null, filled_at = null,
-    final_price_cents = null, final_duration_min = null, current_offer_id = null
-  where id = s.id;
-
-  update public.waitlist_entries set status = 'left' where id = p_entry;
-
-  insert into public.events (salon_id, type, slot_id, entry_id, message)
-  values (s.salon_id, 'released', s.id, p_entry,
-          format('%s zegde zelf af voor %s', e.first_name, public._fmt_time(s.starts_at)));
-
-  if public._offer_all(s.id) = 0 then
-    perform public._log_no_match(s.id);
-    return 'free';
-  end if;
-  return 'offered';
-end $$;
-
-
 -- ---------- Rechten ----------
 revoke execute on function public._offer_all(uuid)        from public, anon, authenticated;
 revoke execute on function public._respond(uuid, boolean) from public, anon, authenticated;
@@ -400,6 +416,7 @@ revoke execute on function public._respond(uuid, boolean) from public, anon, aut
 grant execute on function
   public.price_for_entry(int, timestamptz, boolean, boolean, int),
   public.update_salon_settings(text, boolean, int, int),
+  public.join_waitlist(text, uuid, text, smallint[], time, time, int, uuid, text, text),
   public.cancel_booking(uuid, uuid)
 to anon, authenticated;
 

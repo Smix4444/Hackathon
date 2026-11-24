@@ -3,6 +3,8 @@ import { claimSchema, joinSchema, settingsSchema } from './schemas'
 
 const valid = {
   firstName: 'Sarah',
+  email: 'sarah@voorbeeld.be',
+  phone: '',
   treatmentId: '11111111-1111-4111-8111-111111111111',
   days: [1, 2],
   timeFrom: '09:00',
@@ -30,6 +32,18 @@ describe('joinSchema', () => {
       'Vul je voornaam in (2 tot 30 letters).',
     )
     expect(joinSchema.safeParse({ ...valid, firstName: 'Sarah2' }).success).toBe(false)
+  })
+
+  it('vraagt een geldig e-mailadres', () => {
+    expect(firstMessage(joinSchema.safeParse({ ...valid, email: 'geen-adres' }))).toBe(
+      'Vul een geldig e-mailadres in.',
+    )
+    expect(joinSchema.safeParse({ ...valid, email: '' }).success).toBe(false)
+  })
+
+  it('laat het telefoonnummer leeg of geldig zijn', () => {
+    expect(joinSchema.safeParse({ ...valid, phone: '0470 12 34 56' }).success).toBe(true)
+    expect(joinSchema.safeParse({ ...valid, phone: '123' }).success).toBe(false)
   })
 
   it('vraagt minstens één dag', () => {

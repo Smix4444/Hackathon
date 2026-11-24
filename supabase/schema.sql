@@ -50,6 +50,8 @@ create table public.waitlist_entries (
   salon_id uuid not null references public.salons(id) on delete cascade,
   treatment_id uuid not null references public.treatments(id),
   first_name text not null check (char_length(btrim(first_name)) between 2 and 30),
+  email text check (email is null or (char_length(email) between 5 and 120 and position('@' in email) > 1)),
+  phone text check (phone is null or char_length(btrim(phone)) between 6 and 20),
   days smallint[] not null
     check (cardinality(days) between 1 and 7 and days <@ array[1,2,3,4,5,6,7]::smallint[]),
   time_from time not null,
@@ -349,7 +351,8 @@ end $$;
 -- Klant: op de wachtlijst. Token wordt client-side gegenereerd (crypto.randomUUID) en alleen gehasht opgeslagen.
 create or replace function public.join_waitlist(
   p_salon_slug text, p_treatment uuid, p_first_name text, p_days smallint[],
-  p_from time, p_to time, p_lead int, p_token uuid)
+  p_from time, p_to time, p_lead int, p_token uuid,
+  p_email text default null, p_phone text default null)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare v_salon uuid; v_entry uuid; v_slot uuid;
 begin
@@ -360,9 +363,10 @@ begin
   end if;
 
   insert into public.waitlist_entries
-    (salon_id, treatment_id, first_name, days, time_from, time_to, lead_minutes)
+    (salon_id, treatment_id, first_name, days, time_from, time_to, lead_minutes, email, phone)
   values
-    (v_salon, p_treatment, btrim(p_first_name), p_days, p_from, p_to, p_lead)
+    (v_salon, p_treatment, btrim(p_first_name), p_days, p_from, p_to, p_lead,
+     nullif(btrim(coalesce(p_email, '')), ''), nullif(btrim(coalesce(p_phone, '')), ''))
   returning id into v_entry;
 
   insert into public.entry_tokens (entry_id, token_hash)
@@ -626,7 +630,7 @@ revoke execute on function public._log_no_match(uuid)        from public, anon, 
 
 grant execute on function
   public.release_slot(uuid),
-  public.join_waitlist(text, uuid, text, smallint[], time, time, int, uuid),
+  public.join_waitlist(text, uuid, text, smallint[], time, time, int, uuid, text, text),
   public.leave_waitlist(uuid, uuid),
   public.accept_offer(uuid, uuid),
   public.decline_offer(uuid, uuid),

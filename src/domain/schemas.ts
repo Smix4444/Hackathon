@@ -26,6 +26,11 @@ function minutesOf(time: string): number {
 export const joinSchema = z
   .object({
     firstName: firstNameSchema,
+    email: z.string().trim().email('Vul een geldig e-mailadres in.'),
+    phone: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || (v.length >= 6 && v.length <= 20), 'Vul een geldig telefoonnummer in.'),
     treatmentId: z.string().uuid('Kies een behandeling.'),
     days: z
       .array(z.number().int().min(1).max(7))

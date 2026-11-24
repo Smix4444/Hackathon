@@ -160,6 +160,8 @@ function entry(partial: Partial<WaitlistEntry> & { id: string }): WaitlistEntry 
     salon_id: 'salon',
     treatment_id: 't-cut',
     first_name: 'Klant',
+    email: null,
+    phone: null,
     days: [1, 2, 3, 4, 5],
     time_from: '09:00',
     time_to: '21:00',
