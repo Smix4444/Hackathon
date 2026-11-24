@@ -62,21 +62,16 @@ describe('claimSchema', () => {
 })
 
 describe('settingsSchema', () => {
+  const valid = { lastMinuteDiscount: true, typicalWaitDays: 14, vipDiscountPct: 10 }
+
   it('laat geldige instellingen door', () => {
-    expect(
-      settingsSchema.safeParse({ offerSeconds: 60, lastMinuteDiscount: true, typicalWaitDays: 14 })
-        .success,
-    ).toBe(true)
+    expect(settingsSchema.safeParse(valid).success).toBe(true)
+    expect(settingsSchema.safeParse({ ...valid, vipDiscountPct: 0 }).success).toBe(true)
   })
 
-  it('weigert een aanbodtijd buiten de lijst en een rare wachttijd', () => {
-    expect(
-      settingsSchema.safeParse({ offerSeconds: 45, lastMinuteDiscount: true, typicalWaitDays: 14 })
-        .success,
-    ).toBe(false)
-    expect(
-      settingsSchema.safeParse({ offerSeconds: 60, lastMinuteDiscount: true, typicalWaitDays: 0 })
-        .success,
-    ).toBe(false)
+  it('weigert een onmogelijke VIP-korting of wachttijd', () => {
+    expect(settingsSchema.safeParse({ ...valid, vipDiscountPct: 80 }).success).toBe(false)
+    expect(settingsSchema.safeParse({ ...valid, vipDiscountPct: -5 }).success).toBe(false)
+    expect(settingsSchema.safeParse({ ...valid, typicalWaitDays: 0 }).success).toBe(false)
   })
 })

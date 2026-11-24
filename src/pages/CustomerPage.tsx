@@ -24,7 +24,7 @@ import { useRealtime } from '../hooks/useRealtime'
 import { useSalon } from '../hooks/useSalon'
 import { useSlots } from '../hooks/useSlots'
 import { useWaitlist } from '../hooks/useWaitlist'
-import { messageForError } from '../lib/errors'
+import { codeOfError, messageForError } from '../lib/errors'
 import { formatDayLabel, formatEuro, formatTime } from '../lib/time'
 import { acceptOffer, declineOffer } from '../services/offerService'
 import { claimFreeSlot } from '../services/slotService'
@@ -77,15 +77,22 @@ export function CustomerPage() {
   const bookedEntry = my.entries.find((entry) => entry.status === 'booked') ?? null
 
   const activeOffer =
-    my.offers.find(
-      (offer) =>
-        offer.status === 'pending' &&
-        new Date(offer.expires_at).getTime() > now.getTime() &&
-        my.entries.some((entry) => entry.id === offer.entry_id),
-    ) ?? null
+    my.offers.find((offer) => {
+      if (offer.status !== 'pending') return false
+      if (!my.entries.some((entry) => entry.id === offer.entry_id)) return false
+      const slot = slots.slots.find((item) => item.id === offer.slot_id)
+      // De plek moet nog openstaan en nog niet begonnen zijn.
+      return Boolean(
+        slot && slot.status === 'offered' && new Date(slot.starts_at).getTime() > now.getTime(),
+      )
+    }) ?? null
 
   const offerSlot = activeOffer
     ? slots.slots.find((slot) => slot.id === activeOffer.slot_id) ?? null
+    : null
+
+  const offerEntry = activeOffer
+    ? my.entries.find((entry) => entry.id === activeOffer.entry_id) ?? null
     : null
 
   async function onJoin(values: JoinValues) {
@@ -143,7 +150,12 @@ export function CustomerPage() {
       setOfferHidden(false)
       refetchAll()
     } catch (caught) {
-      toast.error(messageForError(caught))
+      const code = codeOfError(caught)
+      if (code === 'SLOT_TAKEN' || code === 'OFFER_CLOSED' || code === 'OFFER_EXPIRED') {
+        toast('Iemand was je net voor. Je blijft op de wachtlijst.')
+      } else {
+        toast.error(messageForError(caught))
+      }
       refetchAll()
     } finally {
       setBusy(false)
@@ -157,7 +169,7 @@ export function CustomerPage() {
     setBusy(true)
     try {
       await declineOffer(activeOffer.id, token)
-      toast.success('De plek gaat naar de volgende. Je blijft op de wachtlijst.')
+      toast.success('Je laat deze plek voorbijgaan. Je blijft op de wachtlijst.')
       refetchAll()
     } catch (caught) {
       toast.error(messageForError(caught))
@@ -348,6 +360,7 @@ export function CustomerPage() {
           slot={offerSlot}
           treatment={treatments.find((t) => t.id === activeOffer.treatment_id)}
           salon={salon}
+          isVip={offerEntry?.is_vip ?? false}
           now={now}
           busy={busy}
           onAccept={onAccept}

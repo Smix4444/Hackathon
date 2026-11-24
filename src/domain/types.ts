@@ -21,6 +21,8 @@ export interface Salon {
   offer_seconds: number
   typical_wait_days: number
   last_minute_discount: boolean
+  /** Extra korting voor vaste klanten, in procent. */
+  vip_discount_pct: number
   created_at: string
 }
 

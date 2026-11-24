@@ -28,37 +28,40 @@ export function AgendaTimeline({
   }
 
   const treatmentById = new Map(treatments.map((t) => [t.id, t]))
-  const offerById = new Map(offers.map((o) => [o.id, o]))
   const entryById = new Map(entries.map((e) => [e.id, e]))
+
+  // Openstaande uitnodigingen per slot: dat is nu de hele wachtrij, niet één persoon.
+  const pendingBySlot = new Map<string, typeof offers>()
+  for (const offer of offers) {
+    if (offer.status !== 'pending') continue
+    const list = pendingBySlot.get(offer.slot_id) ?? []
+    list.push(offer)
+    pendingBySlot.set(offer.slot_id, list)
+  }
 
   return (
     <ol className="flex flex-col gap-3">
-      {slots.map((slot) => {
-        const offer = slot.current_offer_id ? offerById.get(slot.current_offer_id) ?? null : null
-        return (
-          <li key={slot.id}>
-            <SlotBlock
-              slot={slot}
-              salon={salon}
-              treatment={treatmentById.get(slot.treatment_id)}
-              filledTreatment={
-                slot.filled_treatment_id ? treatmentById.get(slot.filled_treatment_id) : undefined
-              }
-              offer={offer}
-              offerEntry={offer ? entryById.get(offer.entry_id) ?? null : null}
-              filledEntry={
-                slot.filled_by_entry_id ? entryById.get(slot.filled_by_entry_id) ?? null : null
-              }
-              now={now}
-              busy={busySlotId === slot.id}
-              onRelease={() => onRelease(slot)}
-              onSimulate={(accept) => {
-                if (offer) onSimulate(offer.id, accept)
-              }}
-            />
-          </li>
-        )
-      })}
+      {slots.map((slot) => (
+        <li key={slot.id}>
+          <SlotBlock
+            slot={slot}
+            salon={salon}
+            treatment={treatmentById.get(slot.treatment_id)}
+            filledTreatment={
+              slot.filled_treatment_id ? treatmentById.get(slot.filled_treatment_id) : undefined
+            }
+            pendingOffers={pendingBySlot.get(slot.id) ?? []}
+            entryById={entryById}
+            filledEntry={
+              slot.filled_by_entry_id ? entryById.get(slot.filled_by_entry_id) ?? null : null
+            }
+            now={now}
+            busy={busySlotId === slot.id}
+            onRelease={() => onRelease(slot)}
+            onSimulate={onSimulate}
+          />
+        </li>
+      ))}
     </ol>
   )
 }

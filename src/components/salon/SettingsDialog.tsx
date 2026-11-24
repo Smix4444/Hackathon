@@ -1,22 +1,14 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import { OFFER_SECONDS_OPTIONS, settingsSchema } from '../../domain/schemas'
+import { settingsSchema } from '../../domain/schemas'
 import type { Salon } from '../../domain/types'
 import { messageForError } from '../../lib/errors'
 import { resetDemo, updateSettings } from '../../services/salonService'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Field } from '../ui/Field'
-import { Select } from '../ui/Select'
 import { TextInput } from '../ui/TextInput'
-
-const SECONDS_LABEL: Record<number, string> = {
-  30: '30 seconden',
-  60: '1 minuut',
-  120: '2 minuten',
-  300: '5 minuten',
-}
 
 /** S7: aanbodtijd, korting, gemiddelde wachttijd en demo resetten. */
 export function SettingsDialog({
@@ -30,8 +22,8 @@ export function SettingsDialog({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [offerSeconds, setOfferSeconds] = useState(salon.offer_seconds)
   const [discount, setDiscount] = useState(salon.last_minute_discount)
+  const [vipPct, setVipPct] = useState(String(salon.vip_discount_pct))
   const [waitDays, setWaitDays] = useState(String(salon.typical_wait_days))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -39,9 +31,9 @@ export function SettingsDialog({
 
   async function save() {
     const parsed = settingsSchema.safeParse({
-      offerSeconds,
       lastMinuteDiscount: discount,
       typicalWaitDays: Number(waitDays),
+      vipDiscountPct: Number(vipPct),
     })
     if (!parsed.success) {
       setError(parsed.error.issues[0].message)
@@ -83,19 +75,22 @@ export function SettingsDialog({
           Instellingen
         </h2>
 
-        <Field id="aanbodtijd" label="Hoe lang krijgt een klant om te beslissen?">
+        <Field
+          id="vipkorting"
+          label="Hoeveel korting krijgt een vaste klant?"
+          hint="In procent, bovenop de last-minute korting. Zet op 0 om het uit te zetten."
+        >
           {(props) => (
-            <Select
+            <TextInput
               {...props}
-              value={offerSeconds}
-              onChange={(event) => setOfferSeconds(Number(event.target.value))}
-            >
-              {OFFER_SECONDS_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {SECONDS_LABEL[value]}
-                </option>
-              ))}
-            </Select>
+              type="number"
+              min={0}
+              max={50}
+              value={vipPct}
+              data-numeric
+              onChange={(event) => setVipPct(event.target.value)}
+              className="w-28"
+            />
           )}
         </Field>
 
@@ -109,7 +104,7 @@ export function SettingsDialog({
           <span>
             <span className="font-bold">Last-minute korting</span>
             <span className="block text-sm text-ink-soft">
-              Hoe dichter bij het tijdstip, hoe goedkoper een vrije plek.
+              Binnen 2 uur 20 procent eraf, binnen 1 uur 30 procent, binnen een halfuur 40 procent.
             </span>
           </span>
         </label>

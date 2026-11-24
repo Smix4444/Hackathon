@@ -1,15 +1,25 @@
 /**
- * Last-minute prijs. MOET overeenkomen met de SQL-functie public.price_for:
- * < 30 min voor de start -30 %, < 60 min -20 %, < 180 min -10 %.
+ * Last-minute prijs. MOET overeenkomen met de SQL-functies public.price_for
+ * en public.price_for_entry: binnen 2 uur -20 %, binnen 1 uur -30 %,
+ * binnen 30 minuten -40 %. Vaste klanten krijgen daar hun korting bovenop.
  */
 
 export const DISCOUNT_TIERS = [
-  { underMinutes: 30, pct: 30 },
-  { underMinutes: 60, pct: 20 },
-  { underMinutes: 180, pct: 10 },
+  { underMinutes: 30, pct: 40 },
+  { underMinutes: 60, pct: 30 },
+  { underMinutes: 120, pct: 20 },
 ] as const
 
 const MS_PER_MIN = 60_000
+
+export interface Price {
+  /** Wat deze persoon betaalt. */
+  cents: number
+  /** Last-minute korting in procent. */
+  pct: number
+  /** Extra korting omdat het een vaste klant is, 0 als dat niet zo is. */
+  vipPct: number
+}
 
 function discountPct(minutesUntilStart: number): number {
   for (const tier of DISCOUNT_TIERS) {
@@ -18,9 +28,9 @@ function discountPct(minutesUntilStart: number): number {
   return 0
 }
 
-function applyPct(baseCents: number, pct: number): number {
-  if (pct === 0) return baseCents
-  return Math.round(baseCents * ((100 - pct) / 100))
+function applyPct(cents: number, pct: number): number {
+  if (pct === 0) return cents
+  return Math.round((cents * (100 - pct)) / 100)
 }
 
 export function priceFor(
@@ -28,11 +38,14 @@ export function priceFor(
   startsAt: Date,
   now: Date,
   discountOn: boolean,
-): { cents: number; pct: number } {
-  if (!discountOn) return { cents: baseCents, pct: 0 }
+  isVip = false,
+  vipPct = 0,
+): Price {
   const minutes = (startsAt.getTime() - now.getTime()) / MS_PER_MIN
-  const pct = discountPct(minutes)
-  return { cents: applyPct(baseCents, pct), pct }
+  const pct = discountOn ? discountPct(minutes) : 0
+  const lastMinute = applyPct(baseCents, pct)
+  const vip = isVip ? vipPct : 0
+  return { cents: applyPct(lastMinute, vip), pct, vipPct: vip }
 }
 
 /**
@@ -44,6 +57,8 @@ export function nextPriceDrop(
   startsAt: Date,
   now: Date,
   discountOn: boolean,
+  isVip = false,
+  vipPct = 0,
 ): { inMs: number; cents: number; pct: number } | null {
   if (!discountOn) return null
   const minutes = (startsAt.getTime() - now.getTime()) / MS_PER_MIN
@@ -57,7 +72,7 @@ export function nextPriceDrop(
   if (!next) return null
   return {
     inMs: Math.max(0, (minutes - next.underMinutes) * MS_PER_MIN),
-    cents: applyPct(baseCents, next.pct),
+    cents: applyPct(applyPct(baseCents, next.pct), isVip ? vipPct : 0),
     pct: next.pct,
   }
 }

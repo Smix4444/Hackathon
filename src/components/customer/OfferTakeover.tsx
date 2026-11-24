@@ -1,22 +1,31 @@
-import { useEffect, useRef, useState } from 'react'
+import { Star, Users } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
 import { APP_NAME } from '../../config'
 import type { Offer, Salon, Slot, Treatment } from '../../domain/types'
-import { useCountdown } from '../../hooks/useCountdown'
-import { formatCountdown, formatDayLabel, formatEuro, formatTime } from '../../lib/time'
+import { nextPriceDrop, priceFor } from '../../lib/pricing'
+import {
+  formatDayLabel,
+  formatDuration,
+  formatEuro,
+  formatMinutes,
+  formatTime,
+} from '../../lib/time'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
-import { DrainBar } from '../ui/DrainBar'
 
 /**
- * Het aanbod valt binnen op de gsm: één enorm tijdstip, een tijdbalk die
- * leegloopt en twee knoppen. Esc weigert niet; het aanbod blijft lopen.
+ * Het aanbod valt binnen op de gsm: één enorm tijdstip en twee knoppen.
+ * Er is geen persoonlijke klok meer; de plek staat open voor iedereen die
+ * past en wie eerst accepteert, krijgt ze. Wachten maakt het goedkoper,
+ * maar ook risicovoller.
  */
 export function OfferTakeover({
   offer,
   slot,
   treatment,
   salon,
+  isVip,
   now,
   busy,
   onAccept,
@@ -27,18 +36,33 @@ export function OfferTakeover({
   slot: Slot | null
   treatment: Treatment | undefined
   salon: Salon
+  isVip: boolean
   now: Date
   busy: boolean
   onAccept: () => void
   onDecline: () => void
   onClose: () => void
 }) {
-  const countdown = useCountdown(offer.expires_at, salon.offer_seconds)
   const timeRef = useRef<HTMLParagraphElement>(null)
-  const [announced, setAnnounced] = useState('')
-
   const startsAt = slot ? new Date(slot.starts_at) : new Date(offer.created_at)
-  const seconds = Math.ceil(countdown.remainingMs / 1000)
+
+  const base = offer.original_price_cents
+  const price = priceFor(
+    base,
+    startsAt,
+    now,
+    salon.last_minute_discount,
+    isVip,
+    salon.vip_discount_pct,
+  )
+  const drop = nextPriceDrop(
+    base,
+    startsAt,
+    now,
+    salon.last_minute_discount,
+    isVip,
+    salon.vip_discount_pct,
+  )
 
   useEffect(() => {
     const previousTitle = document.title
@@ -50,17 +74,11 @@ export function OfferTakeover({
     }
   }, [])
 
-  useEffect(() => {
-    if (seconds <= 10 && announced !== '10') setAnnounced('10')
-    else if (seconds <= 30 && seconds > 10 && announced !== '30') setAnnounced('30')
-  }, [seconds, announced])
-
   return (
     <Dialog
       open
       onClose={onClose}
       role="alertdialog"
-      dismissable={false}
       labelledBy="aanbod-kop"
       describedBy="aanbod-details"
     >
@@ -84,43 +102,46 @@ export function OfferTakeover({
           <p className="text-ink-soft">
             {treatment?.name ?? 'Behandeling'}, {treatment?.duration_min ?? '?'} min
           </p>
-          <p className="flex items-baseline gap-2">
+          <p className="flex flex-wrap items-baseline gap-2">
             <span data-numeric className="text-lg font-bold">
-              {formatEuro(offer.price_cents)}
+              {formatEuro(price.cents)}
             </span>
-            {offer.price_cents < offer.original_price_cents ? (
-              <>
-                <s data-numeric className="text-ink-soft">
-                  {formatEuro(offer.original_price_cents)}
-                </s>
-                <span className="sr-only">last-minute korting</span>
-              </>
+            {price.cents < base ? (
+              <s data-numeric className="text-ink-soft">
+                {formatEuro(base)}
+              </s>
             ) : null}
           </p>
+          {price.vipPct > 0 ? (
+            <p className="flex items-center gap-2 text-sm text-offer-text">
+              <Star aria-hidden="true" className="size-4 shrink-0" fill="currentColor" />
+              <span>
+                <span data-numeric>{price.vipPct}%</span> korting omdat je vaste klant bent
+              </span>
+            </p>
+          ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <DrainBar fraction={countdown.fraction} tall />
-          <p className="text-ink-soft">
-            Je hebt nog{' '}
-            <output data-numeric className="font-bold text-ink">
-              {formatCountdown(countdown.remainingMs)}
-            </output>
+        <div className="flex flex-col gap-2 rounded-block border border-offer bg-offer-tint p-4">
+          <p className="flex items-center gap-2 font-bold">
+            <Users aria-hidden="true" className="size-5 shrink-0" />
+            <span>Wie eerst accepteert, krijgt de plek</span>
           </p>
-          <span className="sr-only" aria-live="assertive">
-            {announced === '10'
-              ? 'Nog tien seconden om te beslissen.'
-              : announced === '30'
-                ? 'Nog dertig seconden om te beslissen.'
-                : ''}
-          </span>
+          {drop ? (
+            <p className="text-ink-soft">
+              Over{' '}
+              <span data-numeric>
+                {drop.inMs > 120_000 ? formatMinutes(drop.inMs / 60_000) : formatDuration(drop.inMs)}
+              </span>{' '}
+              zakt de prijs naar <span data-numeric>{formatEuro(drop.cents)}</span>. Wachten is
+              goedkoper, maar iemand anders kan de plek intussen nemen.
+            </p>
+          ) : (
+            <p className="text-ink-soft">
+              Dit is de laagste prijs. Wacht je langer, dan is de plek misschien weg.
+            </p>
+          )}
         </div>
-
-        {countdown.expired ? (
-          <p role="alert" className="font-bold">
-            De tijd is om. De plek ging naar de volgende in de rij. Je blijft op de wachtlijst.
-          </p>
-        ) : null}
 
         <div className="flex flex-col gap-3">
           <Button
@@ -128,7 +149,7 @@ export function OfferTakeover({
             size="lg"
             block
             loading={busy}
-            disabled={countdown.expired || busy}
+            disabled={busy}
             onClick={onAccept}
           >
             Ik neem deze plek

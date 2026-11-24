@@ -19,13 +19,13 @@ export async function getTreatments(salonId: string): Promise<Treatment[]> {
 
 export async function updateSettings(
   slug: string,
-  settings: { offerSeconds: number; lastMinuteDiscount: boolean; typicalWaitDays: number },
+  settings: { lastMinuteDiscount: boolean; typicalWaitDays: number; vipDiscountPct: number },
 ): Promise<void> {
   const { error } = await supabase.rpc('update_salon_settings', {
     p_slug: slug,
-    p_offer_seconds: settings.offerSeconds,
     p_discount: settings.lastMinuteDiscount,
     p_typical_wait_days: settings.typicalWaitDays,
+    p_vip_discount_pct: settings.vipDiscountPct,
   })
   if (error) throw error
 }

@@ -50,16 +50,13 @@ export const claimSchema = z.object({
 
 export type ClaimInput = z.infer<typeof claimSchema>
 
-export const OFFER_SECONDS_OPTIONS = [30, 60, 120, 300] as const
-
 export const settingsSchema = z.object({
-  offerSeconds: z
-    .number()
-    .refine(
-      (v) => (OFFER_SECONDS_OPTIONS as readonly number[]).includes(v),
-      'Kies een geldige aanbodtijd.',
-    ),
   lastMinuteDiscount: z.boolean(),
+  vipDiscountPct: z
+    .number()
+    .int('Vul een heel percentage in.')
+    .min(0, 'Minstens 0 procent.')
+    .max(50, 'Maximaal 50 procent.'),
   typicalWaitDays: z
     .number()
     .int('Vul een heel aantal dagen in.')

@@ -1,10 +1,15 @@
 import { CalendarCheck, Check, CircleDashed, Hourglass } from 'lucide-react'
 
 import type { Offer, Salon, Slot, Treatment, WaitlistEntry } from '../../domain/types'
-import { useCountdown } from '../../hooks/useCountdown'
-import { formatCountdown, formatDuration, formatEuro, formatTime, slotMinutes } from '../../lib/time'
+import { nextPriceDrop, priceFor } from '../../lib/pricing'
+import {
+  formatDuration,
+  formatEuro,
+  formatMinutes,
+  formatTime,
+  slotMinutes,
+} from '../../lib/time'
 import { Button } from '../ui/Button'
-import { DrainBar } from '../ui/DrainBar'
 import { SimulateButtons } from './SimulateButtons'
 
 const SHELL = 'flex gap-4 rounded-block border p-4 transition-colors duration-300'
@@ -14,8 +19,8 @@ export function SlotBlock({
   salon,
   treatment,
   filledTreatment,
-  offer,
-  offerEntry,
+  pendingOffers,
+  entryById,
   filledEntry,
   now,
   busy,
@@ -26,20 +31,26 @@ export function SlotBlock({
   salon: Salon
   treatment: Treatment | undefined
   filledTreatment: Treatment | undefined
-  offer: Offer | null
-  offerEntry: WaitlistEntry | null
+  /** Openstaande uitnodigingen voor dit slot. */
+  pendingOffers: Offer[]
+  entryById: Map<string, WaitlistEntry>
   filledEntry: WaitlistEntry | null
   now: Date
   busy: boolean
   onRelease: () => void
-  onSimulate: (accept: boolean) => void
+  onSimulate: (offerId: string, accept: boolean) => void
 }) {
   const minutes = slotMinutes(slot.starts_at, slot.ends_at)
-  const started = new Date(slot.starts_at).getTime() <= now.getTime()
-  const countdown = useCountdown(
-    slot.status === 'offered' && offer ? offer.expires_at : null,
-    salon.offer_seconds,
-  )
+  const startsAt = new Date(slot.starts_at)
+  const started = startsAt.getTime() <= now.getTime()
+
+  const base = treatment?.price_cents ?? 0
+  const price = priceFor(base, startsAt, now, salon.last_minute_discount)
+  const drop = nextPriceDrop(base, startsAt, now, salon.last_minute_discount)
+
+  const demoOffers = pendingOffers
+    .filter((offer) => entryById.get(offer.entry_id)?.is_demo)
+    .slice(0, 2)
 
   const tone =
     slot.status === 'free'
@@ -53,7 +64,7 @@ export function SlotBlock({
   return (
     <article className={[SHELL, tone].join(' ')} style={{ minHeight: Math.max(56, minutes * 1.5) }}>
       <p className="w-14 shrink-0 font-display text-lg font-extrabold leading-tight" data-numeric>
-        <time dateTime={slot.starts_at}>{formatTime(new Date(slot.starts_at))}</time>
+        <time dateTime={slot.starts_at}>{formatTime(startsAt)}</time>
       </p>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -62,7 +73,9 @@ export function SlotBlock({
             <h3 className="text-lg">{slot.customer_name ?? 'Afspraak'}</h3>
             <p className="flex items-center gap-2 text-ink-soft">
               <CalendarCheck aria-hidden="true" className="size-4 shrink-0" />
-              Geboekt, {treatment?.name ?? 'behandeling'}, {minutes} min
+              <span>
+                Geboekt, {treatment?.name ?? 'behandeling'}, {minutes} min
+              </span>
             </p>
           </>
         ) : null}
@@ -72,31 +85,49 @@ export function SlotBlock({
             <h3 className="text-lg text-free-text">Vrije plek</h3>
             <p className="flex items-center gap-2 text-free-text">
               <CircleDashed aria-hidden="true" className="size-4 shrink-0" />
-              Niemand op de wachtlijst past. De plek staat open.
+              <span>Niemand op de wachtlijst past. De plek staat open voor iedereen.</span>
             </p>
           </>
         ) : null}
 
-        {slot.status === 'offered' && offer ? (
+        {slot.status === 'offered' ? (
           <>
-            <h3 className="text-lg">Aangeboden aan {offerEntry?.first_name ?? 'de volgende'}</h3>
+            <h3 className="text-lg">
+              Open voor{' '}
+              <span data-numeric>
+                {pendingOffers.length} {pendingOffers.length === 1 ? 'wachtende' : 'wachtenden'}
+              </span>
+            </h3>
             <p className="flex items-center gap-2 text-ink-soft">
               <Hourglass aria-hidden="true" className="size-4 shrink-0" />
-              <span>
-                Nog{' '}
-                <output data-numeric className="font-bold text-ink">
-                  {formatCountdown(countdown.remainingMs)}
-                </output>{' '}
-                om te beslissen
-              </span>
+              <span>Wie eerst accepteert, krijgt de plek.</span>
             </p>
-            <DrainBar fraction={countdown.fraction} />
-            {offerEntry?.is_demo ? (
-              <SimulateButtons
-                name={offerEntry.first_name}
-                busy={busy}
-                onRespond={onSimulate}
-              />
+            <p className="text-ink-soft">
+              <span data-numeric className="font-bold text-ink">
+                {formatEuro(price.cents)}
+              </span>
+              {drop ? (
+                <>
+                  {', zakt over '}
+                  <span data-numeric>
+                    {drop.inMs > 120_000 ? formatMinutes(drop.inMs / 60_000) : formatDuration(drop.inMs)}
+                  </span>
+                  {' naar '}
+                  <span data-numeric>{formatEuro(drop.cents)}</span>
+                </>
+              ) : null}
+            </p>
+            {demoOffers.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {demoOffers.map((offer) => (
+                  <SimulateButtons
+                    key={offer.id}
+                    name={entryById.get(offer.entry_id)?.first_name ?? 'Demo'}
+                    busy={busy}
+                    onRespond={(accept) => onSimulate(offer.id, accept)}
+                  />
+                ))}
+              </div>
             ) : null}
           </>
         ) : null}
@@ -120,6 +151,9 @@ export function SlotBlock({
             {slot.final_price_cents !== null ? (
               <p data-numeric className="text-ink-soft">
                 {formatEuro(slot.final_price_cents)}
+                {filledEntry?.is_vip ? (
+                  <span className="text-offer-text"> met korting voor vaste klanten</span>
+                ) : null}
               </p>
             ) : null}
           </>

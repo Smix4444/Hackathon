@@ -45,6 +45,7 @@ const salon: Salon = {
   offer_seconds: 60,
   typical_wait_days: 14,
   last_minute_discount: true,
+  vip_discount_pct: 10,
   created_at: at(-10000),
 }
 
@@ -126,6 +127,19 @@ const slots: Slot[] = [
 ]
 
 const offers: Offer[] = [
+  {
+    id: 'o2',
+    salon_id: 'salon',
+    slot_id: 's4',
+    entry_id: 'e-sarah',
+    treatment_id: 't-cut',
+    status: 'pending',
+    price_cents: 2560,
+    original_price_cents: 3200,
+    created_at: at(-0.5),
+    expires_at: at(10),
+    responded_at: null,
+  },
   {
     id: 'o1',
     salon_id: 'salon',
@@ -345,6 +359,7 @@ export default function PreviewPage() {
           slot={slots[3]}
           treatment={treatments[0]}
           salon={salon}
+          isVip
           now={nowTick}
           busy={false}
           onAccept={() => setOfferOpen(false)}

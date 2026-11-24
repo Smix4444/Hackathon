@@ -12,6 +12,7 @@ create table public.salons (
   offer_seconds int not null default 60 check (offer_seconds between 15 and 900),
   typical_wait_days int not null default 14 check (typical_wait_days between 1 and 90),
   last_minute_discount boolean not null default true,
+  vip_discount_pct int not null default 10 check (vip_discount_pct between 0 and 50),
   created_at timestamptz not null default now()
 );
 
@@ -134,10 +135,20 @@ create or replace function public.price_for(p_base int, p_starts timestamptz, p_
 returns int language sql stable set search_path = public as $$
   select case
     when not p_discount                              then p_base
-    when p_starts - now() < interval '30 minutes'    then round(p_base * 0.70)::int
-    when p_starts - now() < interval '60 minutes'    then round(p_base * 0.80)::int
-    when p_starts - now() < interval '180 minutes'   then round(p_base * 0.90)::int
+    when p_starts - now() < interval '30 minutes'    then round(p_base * 0.60)::int
+    when p_starts - now() < interval '60 minutes'    then round(p_base * 0.70)::int
+    when p_starts - now() < interval '120 minutes'   then round(p_base * 0.80)::int
     else p_base
+  end
+$$;
+
+-- Prijs voor een bepaalde wachtende: vaste klanten krijgen er korting bovenop.
+create or replace function public.price_for_entry(
+  p_base int, p_starts timestamptz, p_discount boolean, p_vip boolean, p_vip_pct int)
+returns int language sql stable set search_path = public as $$
+  select case
+    when p_vip then round(public.price_for(p_base, p_starts, p_discount) * (100 - p_vip_pct) / 100.0)::int
+    else public.price_for(p_base, p_starts, p_discount)
   end
 $$;
 
@@ -155,66 +166,62 @@ returns boolean language sql stable security definer set search_path = public as
   )
 $$;
 
--- Kies de best passende wachtende en maak een aanbod. Verwacht een slot met status 'free'.
-create or replace function public._offer_next(p_slot uuid)
-returns uuid language plpgsql security definer set search_path = public as $$
+-- Zet een vrijgekomen plek open voor IEDEREEN op de wachtlijst die past.
+-- Wie eerst accepteert, krijgt ze. Geeft het aantal uitnodigingen terug.
+create or replace function public._offer_all(p_slot uuid)
+returns int language plpgsql security definer set search_path = public as $$
 declare
-  s        public.slots%rowtype;
-  v_salon  public.salons%rowtype;
-  v_entry  public.waitlist_entries%rowtype;
-  v_t      public.treatments%rowtype;
-  v_local  timestamp;
+  s          public.slots%rowtype;
+  v_salon    public.salons%rowtype;
+  v_local    timestamp;
   v_slot_min int;
-  v_offer  uuid;
-  v_price  int;
+  r          record;
+  n          int := 0;
 begin
   select * into s from public.slots where id = p_slot for update;
   if not found or s.status <> 'free' or s.starts_at <= now() then
-    return null;
+    return 0;
   end if;
 
   select * into v_salon from public.salons where id = s.salon_id;
   v_local    := s.starts_at at time zone 'Europe/Brussels';
   v_slot_min := extract(epoch from (s.ends_at - s.starts_at))::int / 60;
 
-  select e.* into v_entry
-  from public.waitlist_entries e
-  join public.treatments t on t.id = e.treatment_id
-  where e.salon_id = s.salon_id
-    and e.status = 'waiting'
-    and t.duration_min <= v_slot_min                                   -- past in het gat
-    and extract(isodow from v_local)::smallint = any (e.days)          -- juiste dag
-    and v_local::time >= e.time_from                                   -- binnen venster
-    and (v_local + make_interval(mins => t.duration_min))::time <= e.time_to
-    and s.starts_at >= now() + make_interval(mins => e.lead_minutes)   -- kan er op tijd zijn
-    and not exists (select 1 from public.offers o
-                    where o.slot_id = s.id and o.entry_id = e.id)      -- nog niet gevraagd
-  order by e.is_vip desc, e.created_at asc
-  limit 1
-  for update of e skip locked;
+  for r in
+    select e.id, e.is_vip, t.id as treatment_id, t.price_cents
+    from public.waitlist_entries e
+    join public.treatments t on t.id = e.treatment_id
+    where e.salon_id = s.salon_id
+      and e.status in ('waiting', 'offered')
+      and t.duration_min <= v_slot_min                                   -- past in het gat
+      and extract(isodow from v_local)::smallint = any (e.days)          -- juiste dag
+      and v_local::time >= e.time_from                                   -- binnen venster
+      and (v_local + make_interval(mins => t.duration_min))::time <= e.time_to
+      and s.starts_at >= now() + make_interval(mins => e.lead_minutes)   -- kan er op tijd zijn
+      and not exists (select 1 from public.offers o
+                      where o.slot_id = s.id and o.entry_id = e.id)      -- nog niet uitgenodigd
+    order by e.is_vip desc, e.created_at asc
+  loop
+    insert into public.offers
+      (salon_id, slot_id, entry_id, treatment_id, price_cents, original_price_cents, expires_at)
+    values
+      (s.salon_id, s.id, r.id, r.treatment_id,
+       public.price_for_entry(r.price_cents, s.starts_at, v_salon.last_minute_discount,
+                              r.is_vip, v_salon.vip_discount_pct),
+       r.price_cents, s.starts_at);
 
-  if not found then
-    return null;
+    update public.waitlist_entries set status = 'offered' where id = r.id;
+    n := n + 1;
+  end loop;
+
+  if n > 0 then
+    update public.slots set status = 'offered' where id = s.id;
+    insert into public.events (salon_id, type, slot_id, message)
+    values (s.salon_id, 'offered', s.id,
+            format('%s staat open voor %s wachtenden', public._fmt_time(s.starts_at), n));
   end if;
 
-  select * into v_t from public.treatments where id = v_entry.treatment_id;
-  v_price := public.price_for(v_t.price_cents, s.starts_at, v_salon.last_minute_discount);
-
-  insert into public.offers
-    (salon_id, slot_id, entry_id, treatment_id, price_cents, original_price_cents, expires_at)
-  values
-    (s.salon_id, s.id, v_entry.id, v_t.id, v_price, v_t.price_cents,
-     now() + make_interval(secs => v_salon.offer_seconds))
-  returning id into v_offer;
-
-  update public.slots set status = 'offered', current_offer_id = v_offer where id = s.id;
-  update public.waitlist_entries set status = 'offered' where id = v_entry.id;
-
-  insert into public.events (salon_id, type, slot_id, entry_id, message)
-  values (s.salon_id, 'offered', s.id, v_entry.id,
-          format('%s aangeboden aan %s', public._fmt_time(s.starts_at), v_entry.first_name));
-
-  return v_offer;
+  return n;
 end $$;
 
 create or replace function public._log_no_match(p_slot uuid)
@@ -227,15 +234,21 @@ begin
           format('Niemand op de wachtlijst past bij %s. De plek staat open.', public._fmt_time(s.starts_at)));
 end $$;
 
--- Accepteren of weigeren. Lock-volgorde altijd: slot → offer (geen deadlocks met expire_offers).
+-- Accepteren of weigeren. Lock-volgorde altijd: slot -> offer (geen deadlocks).
+-- Accepteren is een race: de eerste die binnen is, wint. De anderen krijgen
+-- SLOT_TAKEN en blijven gewoon op de wachtlijst staan.
 create or replace function public._respond(p_offer uuid, p_accept boolean)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_slot_id uuid;
-  s   public.slots%rowtype;
-  o   public.offers%rowtype;
-  v_t public.treatments%rowtype;
-  v_name text;
+  s       public.slots%rowtype;
+  o       public.offers%rowtype;
+  v_t     public.treatments%rowtype;
+  v_salon public.salons%rowtype;
+  v_name  text;
+  v_vip   boolean;
+  v_price int;
+  v_left  int;
 begin
   select slot_id into v_slot_id from public.offers where id = p_offer;
   if v_slot_id is null then raise exception 'OFFER_NOT_FOUND'; end if;
@@ -244,22 +257,37 @@ begin
   select * into o from public.offers where id = p_offer   for update;
 
   if o.status <> 'pending' then raise exception 'OFFER_CLOSED'; end if;
-  if o.expires_at < now()  then raise exception 'OFFER_EXPIRED'; end if;
-  if s.status <> 'offered' or s.current_offer_id is distinct from o.id then
-    raise exception 'SLOT_TAKEN';
-  end if;
+  if s.starts_at <= now()  then raise exception 'OFFER_EXPIRED'; end if;
 
-  select first_name into v_name from public.waitlist_entries where id = o.entry_id;
+  select first_name, is_vip into v_name, v_vip
+  from public.waitlist_entries where id = o.entry_id;
 
   if p_accept then
-    select * into v_t from public.treatments where id = o.treatment_id;
+    if s.status <> 'offered' then raise exception 'SLOT_TAKEN'; end if;
 
-    update public.offers set status = 'accepted', responded_at = now() where id = o.id;
+    select * into v_t     from public.treatments where id = o.treatment_id;
+    select * into v_salon from public.salons     where id = s.salon_id;
+    v_price := public.price_for_entry(v_t.price_cents, s.starts_at,
+                                      v_salon.last_minute_discount, v_vip, v_salon.vip_discount_pct);
+
+    update public.offers set status = 'accepted', responded_at = now(), price_cents = v_price
+    where id = o.id;
+
     update public.slots set
       status = 'filled', filled_by_entry_id = o.entry_id, filled_treatment_id = o.treatment_id,
-      filled_at = now(), final_price_cents = o.price_cents, final_duration_min = v_t.duration_min
+      filled_at = now(), final_price_cents = v_price, final_duration_min = v_t.duration_min
     where id = s.id;
+
     update public.waitlist_entries set status = 'booked' where id = o.entry_id;
+
+    -- Iedereen die ook uitgenodigd was, verliest deze plek maar blijft wachten.
+    update public.offers set status = 'expired', responded_at = now()
+    where slot_id = s.id and status = 'pending';
+
+    update public.waitlist_entries w set status = 'waiting'
+    where w.status = 'offered'
+      and exists (select 1 from public.offers o2 where o2.slot_id = s.id and o2.entry_id = w.id)
+      and not exists (select 1 from public.offers o3 where o3.entry_id = w.id and o3.status = 'pending');
 
     insert into public.events (salon_id, type, slot_id, entry_id, message)
     values (s.salon_id, 'accepted', s.id, o.entry_id,
@@ -267,18 +295,28 @@ begin
 
     return jsonb_build_object(
       'status', 'accepted', 'slot_id', s.id, 'starts_at', s.starts_at,
-      'price_cents', o.price_cents, 'original_price_cents', o.original_price_cents,
+      'price_cents', v_price, 'original_price_cents', o.original_price_cents,
       'treatment', v_t.name, 'duration_min', v_t.duration_min);
   else
     update public.offers set status = 'declined', responded_at = now() where id = o.id;
-    update public.waitlist_entries set status = 'waiting' where id = o.entry_id;
-    update public.slots set status = 'free', current_offer_id = null where id = s.id;
+
+    update public.waitlist_entries w set status = 'waiting'
+    where w.id = o.entry_id
+      and not exists (select 1 from public.offers o2 where o2.entry_id = w.id and o2.status = 'pending');
 
     insert into public.events (salon_id, type, slot_id, entry_id, message)
     values (s.salon_id, 'declined', s.id, o.entry_id,
-            format('%s sloeg %s af', v_name, public._fmt_time(s.starts_at)));
+            format('%s slaat %s af', v_name, public._fmt_time(s.starts_at)));
 
-    if public._offer_next(s.id) is null then perform public._log_no_match(s.id); end if;
+    -- Niemand van de wachtlijst meer over? Dan staat de plek open voor iedereen.
+    select count(*) into v_left from public.offers
+    where slot_id = s.id and status = 'pending';
+
+    if v_left = 0 and s.status = 'offered' then
+      update public.slots set status = 'free' where id = s.id;
+      perform public._log_no_match(s.id);
+    end if;
+
     return jsonb_build_object('status', 'declined');
   end if;
 end $$;
@@ -301,7 +339,7 @@ begin
   values (s.salon_id, 'released', s.id,
           format('%s zegde af voor %s', coalesce(s.customer_name, 'Een klant'), public._fmt_time(s.starts_at)));
 
-  if public._offer_next(s.id) is null then
+  if public._offer_all(s.id) = 0 then
     perform public._log_no_match(s.id);
     return 'free';
   end if;
@@ -339,7 +377,7 @@ begin
     where salon_id = v_salon and status = 'free' and starts_at > now()
     order by starts_at
   loop
-    perform public._offer_next(v_slot);
+    perform public._offer_all(v_slot);
     exit when (select status from public.waitlist_entries where id = v_entry) = 'offered';
   end loop;
 
@@ -390,27 +428,32 @@ begin
   return public._respond(p_offer, p_accept);
 end $$;
 
--- Idempotent: door elke open pagina aan te roepen
+-- Idempotent: door elke open pagina aan te roepen. Ruimt uitnodigingen op
+-- voor plekken die intussen begonnen zijn.
 create or replace function public.expire_offers()
 returns int language plpgsql security definer set search_path = public as $$
 declare r record; n int := 0;
 begin
   for r in
-    select s.id as slot_id, s.salon_id, s.starts_at, o.id as offer_id, o.entry_id
+    select s.id as slot_id, s.salon_id, s.starts_at, s.status
     from public.slots s
-    join public.offers o on o.id = s.current_offer_id
-    where s.status = 'offered' and o.status = 'pending' and o.expires_at < now()
+    where s.status = 'offered' and s.starts_at <= now()
     for update of s skip locked
   loop
-    update public.offers set status = 'expired', responded_at = now() where id = r.offer_id;
-    update public.waitlist_entries set status = 'waiting' where id = r.entry_id and status = 'offered';
-    update public.slots set status = 'free', current_offer_id = null where id = r.slot_id;
+    update public.offers set status = 'expired', responded_at = now()
+    where slot_id = r.slot_id and status = 'pending';
 
-    insert into public.events (salon_id, type, slot_id, entry_id, message)
-    values (r.salon_id, 'expired', r.slot_id, r.entry_id,
-            format('Geen reactie op %s, door naar de volgende', public._fmt_time(r.starts_at)));
+    update public.waitlist_entries w set status = 'waiting'
+    where w.status = 'offered'
+      and exists (select 1 from public.offers o2 where o2.slot_id = r.slot_id and o2.entry_id = w.id)
+      and not exists (select 1 from public.offers o3 where o3.entry_id = w.id and o3.status = 'pending');
 
-    if public._offer_next(r.slot_id) is null then perform public._log_no_match(r.slot_id); end if;
+    update public.slots set status = 'free' where id = r.slot_id;
+
+    insert into public.events (salon_id, type, slot_id, message)
+    values (r.salon_id, 'expired', r.slot_id,
+            format('Niemand nam %s over', public._fmt_time(r.starts_at)));
+
     n := n + 1;
   end loop;
   return n;
@@ -463,12 +506,12 @@ returns void language sql security definer set search_path = public as $$
 $$;
 
 create or replace function public.update_salon_settings(
-  p_slug text, p_offer_seconds int, p_discount boolean, p_typical_wait_days int)
+  p_slug text, p_discount boolean, p_typical_wait_days int, p_vip_discount_pct int)
 returns void language sql security definer set search_path = public as $$
   update public.salons
-  set offer_seconds = p_offer_seconds,
-      last_minute_discount = p_discount,
-      typical_wait_days = p_typical_wait_days
+  set last_minute_discount = p_discount,
+      typical_wait_days = p_typical_wait_days,
+      vip_discount_pct = p_vip_discount_pct
   where slug = p_slug;
 $$;
 
@@ -536,7 +579,7 @@ begin
 end $$;
 
 -- ---------- Rechten ----------
-revoke execute on function public._offer_next(uuid)          from public, anon, authenticated;
+revoke execute on function public._offer_all(uuid)           from public, anon, authenticated;
 revoke execute on function public._respond(uuid, boolean)    from public, anon, authenticated;
 revoke execute on function public._token_ok(uuid, uuid)      from public, anon, authenticated;
 revoke execute on function public._log_no_match(uuid)        from public, anon, authenticated;
@@ -551,7 +594,8 @@ grant execute on function
   public.expire_offers(),
   public.claim_free_slot(uuid, text, uuid),
   public.set_vip(uuid, boolean),
-  public.update_salon_settings(text, int, boolean, int),
+  public.update_salon_settings(text, boolean, int, int),
   public.reset_demo(text),
-  public.price_for(int, timestamptz, boolean)
+  public.price_for(int, timestamptz, boolean),
+  public.price_for_entry(int, timestamptz, boolean, boolean, int)
 to anon, authenticated;
