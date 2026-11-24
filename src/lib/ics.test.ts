@@ -3,18 +3,18 @@ import { buildIcs } from './ics'
 
 describe('buildIcs', () => {
   const ics = buildIcs({
-    uid: 'slot-1@invaller',
+    uid: 'slot-1@replannr',
     title: 'Knippen bij Studio Noor',
     start: new Date('2026-11-24T14:45:00Z'),
     end: new Date('2026-11-24T15:15:00Z'),
     location: 'Studio Noor, Antwerpen',
-    description: 'Je plek via Invaller',
+    description: 'Je plek via Replannr',
   })
 
   it('bouwt een geldig VEVENT', () => {
     expect(ics.startsWith('BEGIN:VCALENDAR')).toBe(true)
     expect(ics.trimEnd().endsWith('END:VCALENDAR')).toBe(true)
-    expect(ics).toContain('UID:slot-1@invaller')
+    expect(ics).toContain('UID:slot-1@replannr')
     expect(ics).toContain('DTSTART:20261124T144500Z')
     expect(ics).toContain('DTEND:20261124T151500Z')
   })

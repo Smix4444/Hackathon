@@ -1,4 +1,4 @@
-# Invaller — bouwplan voor Claude Code
+# Replannr — bouwplan voor Claude Code
 
 > **Instructie voor Claude Code**
 > Lees dit volledige plan voor je begint. Werk **fase per fase** (sectie 11). Na elke fase:
@@ -13,9 +13,9 @@
 
 | | |
 |---|---|
-| **Naam** | Invaller |
-| **Tagline** | Valt er iemand af? Je invaller staat al klaar. |
-| **Eén zin** | Invaller vult een last-minute geannuleerde afspraak in een kapsalon binnen enkele minuten opnieuw in, door de vrije plek live aan te bieden aan de klant op de wachtlijst die er het best in past. |
+| **Naam** | Replannr |
+| **Tagline** | Valt er iemand af? De volgende staat al klaar. |
+| **Eén zin** | Replannr vult een last-minute geannuleerde afspraak in een kapsalon binnen enkele minuten opnieuw in, door de vrije plek live aan te bieden aan de klant op de wachtlijst die er het best in past. |
 | **Eindgebruiker (primair)** | Kleine zelfstandige kapper of salon in Antwerpen, staat zelf achter de stoel, heeft geen tijd om rond te bellen. |
 | **Eindgebruiker (secundair)** | Klant die normaal ±2 weken moet wachten op een afspraak, maar flexibel is en vandaag of morgen kan inspringen. |
 | **Stack** | React + Vite + TypeScript + Tailwind v4 · Supabase (Postgres, RPC, Realtime) · Vercel |
@@ -24,13 +24,13 @@
 ### Hoe beide gebruikers tijd ervaren (de kern van het concept)
 - **Salon:** een annulering = een gat van 30–90 minuten waarin de stoel leeg staat en de kapper niet betaald wordt. Rondbellen kost nóg meer tijd, en tegen dat iemand terugbelt is het slot voorbij.
 - **Klant:** wachten = dagen of weken. Hij zou graag vroeger komen, maar weet nooit wanneer er iets vrijkomt.
-- **Invaller verbindt die twee:** verloren tijd van de salon wordt gewonnen tijd voor de klant. Dat tonen we letterlijk: *"2 u 15 min teruggewonnen vandaag"* voor de salon en *"13 dagen sneller geholpen"* voor de klant.
+- **Replannr verbindt die twee:** verloren tijd van de salon wordt gewonnen tijd voor de klant. Dat tonen we letterlijk: *"2 u 15 min teruggewonnen vandaag"* voor de salon en *"13 dagen sneller geholpen"* voor de klant.
 
 ---
 
 ## 1. Kritische keuzes (waarom dit plan er zo uitziet)
 
-1. **Niet Replannr opnieuw maken.** Replannr = zoekplatform + boeken + wachtlijst met e-mail en 10 min voorrang + strikes, indigo-huisstijl. Invaller verschilt bewust:
+1. **Niet de oude Replannr opnieuw maken.** Replannr 1 = zoekplatform + boeken + wachtlijst met e-mail en 10 min voorrang + strikes, indigo-huisstijl. Deze versie verschilt bewust:
    - **Live aanbod in de app** met een zichtbare aftelklok, geen e-mail. Het aanbod "valt binnen" op je gsm terwijl de salon klikt.
    - **Slimme pasvorm:** een kortere behandeling mag in een langer vrijgekomen slot (Knippen 30 min past in een gat van 45 min). Matching op behandeling-duur, dag, tijdvenster en "hoe snel kan je er zijn".
    - **Last-minute prijs:** hoe dichter bij het tijdstip, hoe goedkoper een vrije plek (−10 / −20 / −30 %).
@@ -100,7 +100,7 @@ Login/accounts, echte sms/WhatsApp/push, agenda bewerken, meerdere salons/medewe
 
 Demo-salon: **Studio Noor**, Antwerpen, slug `studio-noor` (fictief).
 
-Globale header: logo "Invaller", salonnaam, **segmented control *Klant | Salon*** (navigeert tussen `/s/:slug` en `/dashboard/:slug`, laatste keuze in localStorage).
+Globale header: logo "Replannr", salonnaam, **segmented control *Klant | Salon*** (navigeert tussen `/s/:slug` en `/dashboard/:slug`, laatste keuze in localStorage).
 
 ### Flow A — kernflow (twee toestellen)
 1. Klant opent `/s/studio-noor` (of scant de QR), vult voornaam, behandeling, dagen, tijdvenster en "hoe snel kan je er zijn" in → *Zet me op de wachtlijst*.
@@ -122,7 +122,7 @@ Seed bevat demo-klanten met een venster op **morgen**. Geef een plek van morgen 
 ## 4. Ontwerpsysteem
 
 ### Sfeer
-De sfeer van replannr.com is het vertrekpunt: warm, vriendelijk, overzichtelijk en rustig. We nemen die sfeer over, maar kopiëren niets — geen logo, teksten, layout of kleuren één-op-één. Invaller ziet er eigen uit: **witte basis, blauw als hoofdkleur, warme accenten in koraal en zonnegeel** die het levendig maken.
+De sfeer van replannr.com is het vertrekpunt: warm, vriendelijk, overzichtelijk en rustig. We nemen die sfeer over, maar kopiëren niets — geen logo, teksten, layout of kleuren één-op-één. Replannr ziet er eigen uit: **witte basis, blauw als hoofdkleur, warme accenten in koraal en zonnegeel** die het levendig maken.
 
 Het memorabele element blijft het **tijdblok zelf**: in de agenda zie je een afspraak letterlijk een gat worden (koraal), geel worden terwijl iemand beslist, en blauw worden zodra ze is ingevuld. Op de gsm is het aanbod één enorm tijdstip met een tijdbalk die leegloopt. Al de rest blijft stil, licht en sober.
 
@@ -191,7 +191,7 @@ Nederlands, tutoyeren, sentence case, kort en warm, zonder uitroeptekens-spam. K
 Landingspagina (desktop ≥ 1024px), links uitgelijnd, geen gecentreerde hero:
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Invaller                                      [ Bekijk de demo ]    │
+│ Replannr                                      [ Bekijk de demo ]    │
 ├───────────────────────────────────────────┬──────────────────────────┤
 │ Een afzegging is geen                     │ Vandaag                  │
 │ verloren uur                              │ 15:00  Tom               │
@@ -213,7 +213,7 @@ Landingspagina (desktop ≥ 1024px), links uitgelijnd, geen gecentreerde hero:
 Dashboard (desktop ≥ 1024px):
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Invaller   Studio Noor              [ Klant | Salon ]  Instellingen │
+│ Replannr   Studio Noor              [ Klant | Salon ]  Instellingen │
 ├──────────────────────────────────────────────────────────────────────┤
 │ 2 u 15 min teruggewonnen vandaag   € 127    3 van 4 opgevuld   1:40 │ ← impactstrook
 ├───────────────────────────────────────────────┬──────────────────────┤
@@ -253,8 +253,8 @@ Aanbod op gsm:
 
 ### Dependencies
 ```bash
-npm create vite@latest invaller -- --template react-ts
-cd invaller
+npm create vite@latest replannr -- --template react-ts
+cd replannr
 npm i @supabase/supabase-js react-router zod react-hook-form @hookform/resolvers \
       sonner lucide-react qrcode.react canvas-confetti \
       @fontsource-variable/bricolage-grotesque @fontsource/atkinson-hyperlegible
@@ -328,8 +328,8 @@ Geen state-library nodig: Supabase is de bron van waarheid, custom hooks houden 
 | Soort | Waar | Overleeft refresh? |
 |---|---|---|
 | Salon, agenda, wachtlijst, aanbiedingen, events | Supabase (bron van waarheid) → hooks | Ja |
-| Mijn inschrijvingen `{entryId, token, salonSlug, firstName}` | localStorage `invaller.entries` | Ja |
-| Gekozen rol | localStorage `invaller.role` | Ja |
+| Mijn inschrijvingen `{entryId, token, salonSlug, firstName}` | localStorage `replannr.entries` | Ja |
+| Gekozen rol | localStorage `replannr.role` | Ja |
 | Gekozen dag op dashboard | URL-query `?dag=morgen` | Ja |
 | Formulier | react-hook-form (lokaal) | Nee (bewust) |
 | Huidige tijd | `useNow` | n.v.t. |
@@ -359,7 +359,7 @@ ANTHROPIC_API_KEY=             # (C3) ALLEEN in Vercel, NOOIT met VITE_-prefix
 
 ```sql
 -- =========================================================
--- Invaller — schema.sql
+-- Replannr — schema.sql
 -- =========================================================
 create extension if not exists pgcrypto with schema extensions;
 
@@ -1023,9 +1023,9 @@ Standaardwaarden voor snelle demo's: dagen = vandaag en morgen, 09:00–21:00, 3
 Op dashboard én klantpagina: elke seconde (via `useNow`) controleren of een zichtbaar aanbod `pending` is met `expires_at < now`. Zo ja → `expireOffers()` (max. 1 aanroep per 2 s, throttle). Server is de scheidsrechter, de client "port" alleen.
 
 ### Aanbod bij de klant
-- `useMyEntries` leest `invaller.entries` uit localStorage en haalt die rijen + hun offers op.
+- `useMyEntries` leest `replannr.entries` uit localStorage en haalt die rijen + hun offers op.
 - Actief aanbod = offer met `status = 'pending'` en `expires_at > now` voor een van mijn entries → `OfferTakeover` opent (native `<dialog>.showModal()`).
-- Bij openen: `document.title = 'Plek vrij! — Invaller'` (C4), `navigator.vibrate?.([200, 100, 200])` (C4), focus naar het tijdstip.
+- Bij openen: `document.title = 'Plek vrij! — Replannr'` (C4), `navigator.vibrate?.([200, 100, 200])` (C4), focus naar het tijdstip.
 - Klokverschil: aftellen gebeurt met `expires_at` van de server; bij een paar seconden verschil wint de server (accepteren na de echte deadline → `OFFER_EXPIRED` → nette melding).
 
 ---
@@ -1048,7 +1048,7 @@ Op dashboard én klantpagina: elke seconde (via `useNow`) controleren of een zic
 - **States:** laden → skeleton-blokken; fout → `ErrorState` met *Opnieuw proberen*; salon niet gevonden → 404-tekst met link.
 
 ### Klantpagina `/s/:slug`
-- Kop: salonnaam, stad, *"Gemiddeld wacht je hier 14 dagen. Met Invaller vaak maar een paar uur."*
+- Kop: salonnaam, stad, *"Gemiddeld wacht je hier 14 dagen. Met Replannr vaak maar een paar uur."*
 - **Geen actieve inschrijving → JoinForm:** velden in sectie 7. Elke input met `<label>`, hint via `aria-describedby`, fout via `aria-invalid` + boodschap onder het veld, focus naar het eerste foute veld bij verzenden. Knop **Zet me op de wachtlijst** (disabled + spinner tijdens verzenden). Serverfout → boodschap boven de knop met `role="alert"`.
 - **Wel actieve inschrijving → WaitingCard:** *"Je staat op de wachtlijst voor Knippen"*, *"Je bent 2e in de rij"*, je dagen en venster, *"Houd deze pagina open. Komt er een plek vrij die past, dan verschijnt ze hier."*, knop *Van de wachtlijst gaan* (bevestiging). Status `booked` → kaart met je afspraak + *Opnieuw inschrijven*.
 - **FreeNowList (S5):** vrije toekomstige slots met tijdstip, behandeling, prijs (doorgestreept origineel), *"Prijs zakt over 12 min naar € 25,60"*, knop **Boek deze plek** → `ClaimDialog` (enkel voornaam) → `SuccessView`. Leeg: *"Op dit moment is er geen vrije plek. Zet je op de wachtlijst, dan krijg je de eerstvolgende die past."*
@@ -1135,7 +1135,7 @@ Op dashboard én klantpagina: elke seconde (via `useNow`) controleren of een zic
 | Responsive mobiel & desktop | Klant mobile-first, dashboard 1→2 kolommen |
 | Labels, zichtbare focus, toetsenbord | Sectie 9, native `<dialog>`, skip-link, focusring |
 | Consistente interface | Eén tokenset, herbruikbare `ui/`-componenten, vaste actienamen |
-| Bewaart kerngegevens na refresh | Supabase + localStorage (`invaller.entries`, `invaller.role`) |
+| Bewaart kerngegevens na refresh | Supabase + localStorage (`replannr.entries`, `replannr.role`) |
 | Invoervalidatie | zod client-side + CHECK-constraints server-side |
 | Laad-, lege- en foutstatussen | Skeleton, EmptyState met actie, ErrorState met *Opnieuw proberen* |
 | Herbruikbare componenten, UI ≠ datalogica | `components/ui`, `services/`, `lib/` (puur, getest), SQL voor regels |

@@ -3,7 +3,7 @@ import type { Slot } from '../domain/types'
 /**
  * Een vrij slot kan twee dingen betekenen:
  *   - released_at gezet: iemand heeft afgezegd, dit is een gat in de agenda
- *     (koraal, last-minute prijs, het hart van Invaller);
+ *     (koraal, last-minute prijs, het hart van Replannr);
  *   - released_at leeg: een gewoon vrij uur dat nog nooit geboekt was en
  *     dat een klant zelf kan reserveren.
  */

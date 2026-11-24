@@ -1,5 +1,5 @@
 -- =========================================================
--- Invaller — schema.sql
+-- Replannr — schema.sql
 -- =========================================================
 create extension if not exists pgcrypto with schema extensions;
 

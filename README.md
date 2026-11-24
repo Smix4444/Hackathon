@@ -1,8 +1,8 @@
-# Invaller
+# Replannr
 
-Valt er iemand af? Je invaller staat al klaar.
+Valt er iemand af? De volgende staat al klaar.
 
-Invaller vult een last-minute geannuleerde afspraak in een kapsalon binnen enkele minuten
+Replannr vult een last-minute geannuleerde afspraak in een kapsalon binnen enkele minuten
 opnieuw in, door de vrije plek live aan te bieden aan de klant op de wachtlijst die er het
 best in past.
 

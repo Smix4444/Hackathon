@@ -1,5 +1,5 @@
-export const APP_NAME = 'Invaller'
-export const TAGLINE = 'Valt er iemand af? Je invaller staat al klaar.'
+export const APP_NAME = 'Replannr'
+export const TAGLINE = 'Valt er iemand af? De volgende staat al klaar.'
 
 /** Salon die de demo gebruikt. */
 export const DEMO_SLUG = import.meta.env.VITE_DEMO_SLUG ?? 'studio-noor'

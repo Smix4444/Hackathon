@@ -1,5 +1,5 @@
 -- =========================================================
--- Invaller - update naar het open-aanbod-model (v2)
+-- Replannr - update naar het open-aanbod-model (v2)
 --
 -- Draai dit EEN KEER in de Supabase SQL-editor als je schema.sql al
 -- eerder hebt uitgevoerd. Het is veilig om opnieuw te draaien.

@@ -276,7 +276,7 @@ export function CustomerPage() {
               <p className="text-ink-soft">
                 {salon.city}. Gemiddeld wacht je hier{' '}
                 <span data-numeric>{salon.typical_wait_days} dagen</span> op een afspraak. Met
-                Invaller is dat vaak maar een paar uur.
+                Replannr is dat vaak maar een paar uur.
               </p>
             </header>
 

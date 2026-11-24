@@ -44,14 +44,14 @@ export function SuccessView({
 
   function addToCalendar() {
     const ics = buildIcs({
-      uid: `${booking.slot_id}@invaller`,
+      uid: `${booking.slot_id}@replannr`,
       title: `${booking.treatment} bij ${salon.name}`,
       start: startsAt,
       end: endsAt,
       location: `${salon.name}, ${salon.city}`,
       description: `Je plek via ${APP_NAME}.`,
     })
-    downloadIcs('invaller-afspraak.ics', ics)
+    downloadIcs('replannr-afspraak.ics', ics)
   }
 
   return (

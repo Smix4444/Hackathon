@@ -105,7 +105,7 @@ export function LandingPage() {
           <div className="mt-8 flex max-w-[60ch] flex-col gap-6 text-lg">
             <p>
               Voor de salon: een gat van veertig minuten is anders veertig minuten zonder inkomen.
-              Invaller laat zien hoeveel tijd en omzet je op een dag terugwint.
+              Replannr laat zien hoeveel tijd en omzet je op een dag terugwint.
             </p>
             <p>
               Voor de klant: je wacht normaal twee weken. Nu hoor je het zodra er iets vrijkomt dat

@@ -5,8 +5,8 @@ import type { MyEntry } from '../domain/types'
  * uitgeschakeld gooit localStorage; de app mag daar niet op stuklopen.
  */
 
-const ROLE_KEY = 'invaller.role'
-const ENTRIES_KEY = 'invaller.entries'
+const ROLE_KEY = 'replannr.role'
+const ENTRIES_KEY = 'replannr.entries'
 
 export type Role = 'customer' | 'salon'
 
