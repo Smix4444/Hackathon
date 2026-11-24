@@ -199,7 +199,7 @@ Landingspagina (desktop ≥ 1024px), links uitgelijnd, geen gecentreerde hero:
 │ Komt er een plek vrij, dan gaat ze meteen │ 15:45 ░░ Vrije plek ░░   │ ← koraal, pulseert
 │ naar de klant die past en snel kan zijn.  │       ▒▒ Aangeboden ▒▒   │ ← wordt geel
 │ Jij doet niets.                           │       ✓  Ingevuld        │ ← wordt blauw
-│                                           │ 16:30  Lotte             │
+│                                           │ 16:30  Milan             │
 │ [ Probeer het dashboard ]                 │        Knippen en baard  │
 │                                           │ (één cyclus, dan stil)   │
 ├───────────────────────────────────────────┴──────────────────────────┤
@@ -220,7 +220,7 @@ Dashboard (desktop ≥ 1024px):
 │ [Vandaag] [Morgen]                            │ Scan om in te vallen │
 │ 15:00 ┃ Tom                   [Plek vrijgeven]│   ▓▓ QR ▓▓           │
 │       ┃ Knippen                               │                      │
-│ 15:30 ┃ Lotte                                 │ Wachtlijst (4)       │
+│ 15:30 ┃ Milan                                 │ Wachtlijst (4)       │
 │       ┃ Knippen en baard                      │ Sarah (VIP)          │
 │ 16:15 ┃░░ Vrije plek ░░ pulseert koraal       │ Knippen, vanaf 15:00 │
 │       ┃                                       │                      │
@@ -843,8 +843,8 @@ declare
   v_tmr_dow  smallint := extract(isodow from v_tomorrow)::smallint;
   v_plan_today text[] := array['cut','beard','color','cut','brush','cut','beard','cut'];
   v_plan_tmr   text[] := array['cut','cut','beard','color','cut','brush'];
-  v_names text[] := array['Tom','Lotte','Yasmine','Arne','Fatima','Jules','Emma','Noah',
-                          'Ines','Milan','Lucas','Nora','Elias','Amira'];
+  v_names text[] := array['Tom','Milan','Yasmine','Arne','Fatima','Jules','Noah','Lotte',
+                          'Ines','Emma','Lucas','Nora','Elias','Amira'];
   v_cursor timestamptz; v_t uuid; v_dur int; i int; n int := 0;
 begin
   select id into v_salon from public.salons where slug = p_slug;

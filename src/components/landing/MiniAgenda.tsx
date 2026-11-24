@@ -114,7 +114,7 @@ export function MiniAgenda() {
         ) : null}
 
         <Row time="16:30" className="border-line bg-bg">
-          <p className="font-bold">Lotte</p>
+          <p className="font-bold">Milan</p>
           <p className="flex items-center gap-2 text-sm text-ink-soft">
             <CalendarCheck aria-hidden="true" className="size-4 shrink-0" />
             Knippen en baard

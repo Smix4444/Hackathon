@@ -9,7 +9,7 @@ import { WaitingCard } from '../components/customer/WaitingCard'
 import { AppHeader } from '../components/layout/AppHeader'
 import { ActivityFeed } from '../components/salon/ActivityFeed'
 import { AgendaTimeline } from '../components/salon/AgendaTimeline'
-import { DayTabs, type DayKey } from '../components/salon/DayTabs'
+import { DayNavigator } from '../components/salon/DayNavigator'
 import { ImpactStrip } from '../components/salon/ImpactStrip'
 import { QrCard } from '../components/salon/QrCard'
 import { ReleaseDialog } from '../components/salon/ReleaseDialog'
@@ -27,6 +27,7 @@ import type {
 } from '../domain/types'
 import { useNow } from '../hooks/useNow'
 import { computeImpact } from '../lib/stats'
+import { brusselsDayKey } from '../lib/time'
 
 /**
  * Alleen in ontwikkeling: toont elk scherm met nepdata, zodat het ontwerp
@@ -88,7 +89,7 @@ const slots: Slot[] = [
     starts_at: at(80),
     ends_at: at(125),
     treatment_id: 't-beard',
-    customer_name: 'Lotte',
+    customer_name: 'Milan',
   }),
   slot({
     id: 's3',
@@ -191,7 +192,7 @@ function Divider({ title }: { title: string }) {
 
 export default function PreviewPage() {
   const nowTick = useNow()
-  const [day, setDay] = useState<DayKey>('vandaag')
+  const [dayKey, setDayKey] = useState(() => brusselsDayKey(new Date()))
   const [releasing, setReleasing] = useState<Slot | null>(null)
   const [claiming, setClaiming] = useState<Slot | null>(null)
   const [offerOpen, setOfferOpen] = useState(false)
@@ -226,7 +227,12 @@ export default function PreviewPage() {
           <section className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="text-xl">Agenda</h3>
-              <DayTabs value={day} onChange={setDay} />
+              <DayNavigator
+                dayKey={dayKey}
+                now={nowTick}
+                count={slots.length}
+                onChange={setDayKey}
+              />
             </div>
             <AgendaTimeline
               slots={slots}

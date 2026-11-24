@@ -483,8 +483,8 @@ declare
   v_tmr_dow  smallint := extract(isodow from v_tomorrow)::smallint;
   v_plan_today text[] := array['cut','beard','color','cut','brush','cut','beard','cut'];
   v_plan_tmr   text[] := array['cut','cut','beard','color','cut','brush'];
-  v_names text[] := array['Tom','Lotte','Yasmine','Arne','Fatima','Jules','Emma','Noah',
-                          'Ines','Milan','Lucas','Nora','Elias','Amira'];
+  v_names text[] := array['Tom','Milan','Yasmine','Arne','Fatima','Jules','Noah','Lotte',
+                          'Ines','Emma','Lucas','Nora','Elias','Amira'];
   v_cursor timestamptz; v_t uuid; v_dur int; i int; n int := 0;
 begin
   select id into v_salon from public.salons where slug = p_slug;

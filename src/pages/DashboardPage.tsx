@@ -6,7 +6,7 @@ import { AppHeader } from '../components/layout/AppHeader'
 import { PageShell } from '../components/layout/PageShell'
 import { ActivityFeed } from '../components/salon/ActivityFeed'
 import { AgendaTimeline } from '../components/salon/AgendaTimeline'
-import { DayTabs, type DayKey } from '../components/salon/DayTabs'
+import { DAYS_AHEAD, DayNavigator, offsetFromToday } from '../components/salon/DayNavigator'
 import { ImpactStrip } from '../components/salon/ImpactStrip'
 import { QrCard } from '../components/salon/QrCard'
 import { ReleaseDialog } from '../components/salon/ReleaseDialog'
@@ -27,7 +27,7 @@ import { useSlots } from '../hooks/useSlots'
 import { useWaitlist } from '../hooks/useWaitlist'
 import { messageForError } from '../lib/errors'
 import { computeImpact } from '../lib/stats'
-import { brusselsDayKey, brusselsDayStart } from '../lib/time'
+import { brusselsDayKey } from '../lib/time'
 import { simulateResponse } from '../services/offerService'
 import { releaseSlot } from '../services/slotService'
 import { isSupabaseConfigured } from '../services/supabase'
@@ -37,7 +37,6 @@ export function DashboardPage() {
   const { slug = DEMO_SLUG } = useParams()
   const now = useNow()
   const [params, setParams] = useSearchParams()
-  const day: DayKey = params.get('dag') === 'morgen' ? 'morgen' : 'vandaag'
 
   const {
     salon,
@@ -79,10 +78,15 @@ export function DashboardPage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const todayKey = brusselsDayKey(now)
-  const dayKey = useMemo(
-    () => brusselsDayKey(brusselsDayStart(new Date(`${todayKey}T12:00:00Z`), day === 'morgen' ? 1 : 0)),
-    [day, todayKey],
-  )
+  const requested = params.get('dag')
+  const dayKey = useMemo(() => {
+    if (!requested || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return todayKey
+    const offset = offsetFromToday(requested, now)
+    if (offset < 0 || offset >= DAYS_AHEAD) return todayKey
+    return requested
+    // `now` tikt elke seconde; alleen de dag zelf telt hier.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requested, todayKey])
 
   const daySlots = slots.slots.filter((slot) => brusselsDayKey(new Date(slot.starts_at)) === dayKey)
   const impact = computeImpact(slots.slots, now)
@@ -172,11 +176,13 @@ export function DashboardPage() {
                   <h2 id="agenda-kop" className="text-xl">
                     Agenda
                   </h2>
-                  <DayTabs
-                    value={day}
+                  <DayNavigator
+                    dayKey={dayKey}
+                    now={now}
+                    count={daySlots.length}
                     onChange={(next) => {
                       const nextParams = new URLSearchParams(params)
-                      if (next === 'vandaag') nextParams.delete('dag')
+                      if (next === todayKey) nextParams.delete('dag')
                       else nextParams.set('dag', next)
                       setParams(nextParams, { replace: true })
                     }}

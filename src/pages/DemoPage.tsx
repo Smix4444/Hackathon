@@ -1,11 +1,17 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { Wordmark } from '../components/layout/Wordmark'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { DEMO_SLUG } from '../config'
 
-/** C1: salon en gsm naast elkaar, voor de pitch. */
+type View = 'beide' | 'desktop' | 'mobiel'
+
+const FRAME = 'h-full w-full rounded-block border border-line bg-bg'
+
+/** C1: salon en gsm naast elkaar, of elk apart, voor de pitch. */
 export function DemoPage() {
-  const frame = 'h-full w-full rounded-block border border-line bg-bg'
+  const [view, setView] = useState<View>('beide')
 
   return (
     <div className="flex h-dvh flex-col">
@@ -15,19 +21,47 @@ export function DemoPage() {
 
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-3 sm:px-8">
         <Wordmark />
-        <p className="text-ink-soft">Salon en klant naast elkaar</p>
+
+        <SegmentedControl<View>
+          label="Welk scherm tonen"
+          value={view}
+          onChange={setView}
+          segments={[
+            { value: 'beide', label: 'Naast elkaar' },
+            { value: 'desktop', label: 'Desktop' },
+            { value: 'mobiel', label: 'Mobiel' },
+          ]}
+        />
+
         <Link to="/" className="font-bold text-blue hover:text-blue-dark">
           Naar de startpagina
         </Link>
       </header>
 
-      <main id="inhoud" className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-[1.6fr_0.9fr]">
-        <section aria-label="Salon-dashboard" className="min-h-0">
-          <iframe title="Salon-dashboard" src={`/dashboard/${DEMO_SLUG}`} className={frame} />
-        </section>
-        <section aria-label="Klantpagina" className="mx-auto min-h-0 w-full max-w-[26rem]">
-          <iframe title="Klantpagina" src={`/s/${DEMO_SLUG}`} className={frame} />
-        </section>
+      <main
+        id="inhoud"
+        className={[
+          'grid min-h-0 flex-1 gap-4 p-4',
+          view === 'beide' ? 'lg:grid-cols-[1.6fr_0.9fr]' : 'grid-cols-1',
+        ].join(' ')}
+      >
+        {view !== 'mobiel' ? (
+          <section aria-label="Salon-dashboard" className="min-h-0">
+            <iframe title="Salon-dashboard" src={`/dashboard/${DEMO_SLUG}`} className={FRAME} />
+          </section>
+        ) : null}
+
+        {view !== 'desktop' ? (
+          <section
+            aria-label="Klantpagina"
+            className={[
+              'mx-auto min-h-0 w-full',
+              view === 'mobiel' ? 'max-w-[24rem]' : 'max-w-[26rem]',
+            ].join(' ')}
+          >
+            <iframe title="Klantpagina" src={`/s/${DEMO_SLUG}`} className={FRAME} />
+          </section>
+        ) : null}
       </main>
     </div>
   )
