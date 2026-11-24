@@ -49,6 +49,7 @@ export function TimeRange({
         <span className="text-sm text-ink-soft">tot</span>
         <Select
           value={to}
+          data-veld="timeTo"
           onChange={(event) => onTo(event.target.value)}
           aria-invalid={invalid ? true : undefined}
           aria-describedby={describedBy}

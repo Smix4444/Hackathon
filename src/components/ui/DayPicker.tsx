@@ -34,6 +34,7 @@ export function DayPicker({
           <button
             key={dow}
             type="button"
+            data-veld={dow === 1 ? 'days' : undefined}
             aria-pressed={on}
             onClick={() => toggle(dow)}
             className={[
