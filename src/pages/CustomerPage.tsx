@@ -260,8 +260,10 @@ export function CustomerPage() {
                 <div className="flex flex-col gap-2 rounded-block border border-blue bg-blue-tint p-5">
                   <p className="flex items-center gap-2 font-bold">
                     <CalendarCheck aria-hidden="true" className="size-5 shrink-0" />
-                    {formatDayLabel(new Date(bookedSlot.starts_at), now)} om{' '}
-                    <span data-numeric>{formatTime(new Date(bookedSlot.starts_at))}</span>
+                    <span>
+                      {formatDayLabel(new Date(bookedSlot.starts_at), now)} om{' '}
+                      <span data-numeric>{formatTime(new Date(bookedSlot.starts_at))}</span>
+                    </span>
                   </p>
                   <p className="text-ink-soft">
                     {treatments.find((t) => t.id === bookedSlot.filled_treatment_id)?.name ??

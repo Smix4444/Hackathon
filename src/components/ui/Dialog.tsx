@@ -61,7 +61,7 @@ export function Dialog({
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
       aria-modal="true"
-      className="w-[min(32rem,calc(100vw-2rem))] rounded-dialog border border-line bg-bg p-6 text-ink shadow-[0_24px_60px_rgba(14,27,61,0.18)] backdrop:bg-ink/45 open:animate-rise sm:p-8"
+      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-dialog border border-line bg-bg p-6 text-ink shadow-[0_24px_60px_rgba(14,27,61,0.18)] backdrop:bg-ink/45 open:animate-rise sm:p-8"
     >
       {children}
     </dialog>

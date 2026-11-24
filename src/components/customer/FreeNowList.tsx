@@ -2,7 +2,14 @@ import { CircleDashed } from 'lucide-react'
 
 import type { Salon, Slot, Treatment } from '../../domain/types'
 import { nextPriceDrop, priceFor } from '../../lib/pricing'
-import { formatDayLabel, formatDuration, formatEuro, formatTime, slotMinutes } from '../../lib/time'
+import {
+  formatDayLabel,
+  formatDuration,
+  formatEuro,
+  formatMinutes,
+  formatTime,
+  slotMinutes,
+} from '../../lib/time'
 import { Button } from '../ui/Button'
 import { EmptyState } from '../ui/EmptyState'
 
@@ -79,7 +86,9 @@ export function FreeNowList({
 
                 {drop ? (
                   <p className="text-sm text-ink-soft">
-                    Prijs zakt over <span data-numeric>{formatDuration(drop.inMs)}</span> naar{' '}
+                    Prijs zakt over <span data-numeric>
+                      {drop.inMs > 120_000 ? formatMinutes(drop.inMs / 60_000) : formatDuration(drop.inMs)}
+                    </span> naar{' '}
                     <span data-numeric>{formatEuro(drop.cents)}</span>.
                   </p>
                 ) : null}

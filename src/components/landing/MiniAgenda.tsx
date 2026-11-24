@@ -106,7 +106,9 @@ export function MiniAgenda() {
             <p className="font-bold text-blue-dark">Ingevuld door Sarah</p>
             <p className="flex items-center gap-2 text-sm text-ink-soft">
               <Check aria-hidden="true" className="size-4 shrink-0" />
-              <span data-numeric>1 min 12 s</span> na de annulering
+              <span>
+                <span data-numeric>1 min 12 s</span> na de annulering
+              </span>
             </p>
           </Row>
         ) : null}

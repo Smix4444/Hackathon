@@ -82,11 +82,13 @@ export function SlotBlock({
             <h3 className="text-lg">Aangeboden aan {offerEntry?.first_name ?? 'de volgende'}</h3>
             <p className="flex items-center gap-2 text-ink-soft">
               <Hourglass aria-hidden="true" className="size-4 shrink-0" />
-              Nog{' '}
-              <output data-numeric className="font-bold text-ink">
-                {formatCountdown(countdown.remainingMs)}
-              </output>
-              om te beslissen
+              <span>
+                Nog{' '}
+                <output data-numeric className="font-bold text-ink">
+                  {formatCountdown(countdown.remainingMs)}
+                </output>{' '}
+                om te beslissen
+              </span>
             </p>
             <DrainBar fraction={countdown.fraction} />
             {offerEntry?.is_demo ? (

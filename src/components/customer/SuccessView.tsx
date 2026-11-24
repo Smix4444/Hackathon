@@ -58,8 +58,10 @@ export function SuccessView({
     <section aria-labelledby="gelukt-kop" className="flex flex-col gap-6">
       <h2 id="gelukt-kop" className="flex items-start gap-3 text-2xl">
         <Check aria-hidden="true" className="mt-1 size-7 shrink-0 text-blue" />
-        Geregeld. Tot {formatDayLabel(startsAt, now)} om{' '}
-        <span data-numeric>{formatTime(startsAt)}</span>.
+        <span>
+          Geregeld. Tot {formatDayLabel(startsAt, now)} om{' '}
+          <span data-numeric>{formatTime(startsAt)}</span>.
+        </span>
       </h2>
 
       {saved > 0 ? (
