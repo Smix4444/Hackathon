@@ -13,6 +13,7 @@ const BY_CODE: Record<string, string> = {
   SLOT_NOT_FOUND: 'Deze afspraak bestaat niet meer.',
   ENTRY_BUSY: 'Je hebt nu een aanbod openstaan. Beantwoord dat eerst.',
   SALON_NOT_FOUND: 'Deze salon bestaat niet. Controleer de link.',
+  NO_BOOKING: 'We vinden geen afspraak om af te zeggen.',
   TREATMENT_NOT_FOUND: 'Deze behandeling bestaat niet meer. Kies een andere.',
 }
 

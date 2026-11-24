@@ -13,6 +13,7 @@ import { SuccessView } from '../components/customer/SuccessView'
 import { WaitingCard } from '../components/customer/WaitingCard'
 import { Button } from '../components/ui/Button'
 import { ConfigNotice } from '../components/ui/ConfigNotice'
+import { Dialog } from '../components/ui/Dialog'
 import { ErrorState } from '../components/ui/ErrorState'
 import { Skeleton } from '../components/ui/Skeleton'
 import { DEMO_SLUG } from '../config'
@@ -29,7 +30,7 @@ import { brusselsDayKey, brusselsDayStart, formatDayLabel, formatEuro, formatTim
 import { acceptOffer, declineOffer } from '../services/offerService'
 import { claimFreeSlot } from '../services/slotService'
 import { isSupabaseConfigured } from '../services/supabase'
-import { joinWaitlist, leaveWaitlist } from '../services/waitlistService'
+import { cancelBooking, joinWaitlist, leaveWaitlist } from '../services/waitlistService'
 import { addMyEntry, newToken, removeMyEntry } from '../storage/local'
 
 export function CustomerPage() {
@@ -70,6 +71,7 @@ export function CustomerPage() {
   const [booking, setBooking] = useState<BookingResult | null>(null)
   const [claiming, setClaiming] = useState<Slot | null>(null)
   const [offerHidden, setOfferHidden] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   const activeEntry =
     my.entries.find((entry) => entry.status === 'offered') ??
@@ -181,6 +183,29 @@ export function CustomerPage() {
     }
   }
 
+  async function onCancelBooking() {
+    if (!bookedEntry) return
+    const token = my.tokenFor(bookedEntry.id)
+    if (!token) return
+    setBusy(true)
+    try {
+      const result = await cancelBooking(bookedEntry.id, token)
+      removeMyEntry(bookedEntry.id)
+      my.refreshLocal()
+      setCancelling(false)
+      refetchAll()
+      toast.success(
+        result === 'offered'
+          ? 'Afspraak afgezegd. De plek gaat naar de wachtlijst.'
+          : 'Afspraak afgezegd. De plek staat weer open.',
+      )
+    } catch (caught) {
+      toast.error(messageForError(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function onClaimConfirm(firstName: string) {
     if (!claiming) return
     const token = newToken()
@@ -287,9 +312,16 @@ export function CustomerPage() {
                     ) : null}
                   </p>
                 </div>
-                <div>
+                <p className="text-ink-soft">
+                  Kan je toch niet? Zeg af, dan gaat de plek meteen naar iemand anders op de
+                  wachtlijst.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="danger" onClick={() => setCancelling(true)}>
+                    Afspraak afzeggen
+                  </Button>
                   <Button
-                    variant="secondary"
+                    variant="quiet"
                     onClick={() => {
                       removeMyEntry(bookedEntry.id)
                       my.refreshLocal()
@@ -370,6 +402,31 @@ export function CustomerPage() {
           onClose={() => setOfferHidden(true)}
         />
       ) : null}
+
+      <Dialog
+        open={cancelling}
+        onClose={() => setCancelling(false)}
+        labelledBy="afzeggen-kop"
+        describedBy="afzeggen-uitleg"
+      >
+        <div className="flex flex-col gap-5">
+          <h2 id="afzeggen-kop" className="text-xl">
+            Je afspraak afzeggen?
+          </h2>
+          <p id="afzeggen-uitleg" className="text-ink-soft">
+            De plek komt meteen vrij en gaat naar de volgende klanten op de wachtlijst die passen.
+            Je kan je daarna opnieuw inschrijven.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="danger" loading={busy} onClick={onCancelBooking}>
+              Ja, zeg af
+            </Button>
+            <Button variant="quiet" disabled={busy} onClick={() => setCancelling(false)}>
+              Laat maar
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <ClaimDialog
         slot={claiming}

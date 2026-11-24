@@ -54,3 +54,13 @@ export async function setVip(entryId: string, vip: boolean): Promise<void> {
   const { error } = await supabase.rpc('set_vip', { p_entry: entryId, p_vip: vip })
   if (error) throw error
 }
+
+/** Klant zegt zijn eigen afspraak af; de plek gaat terug naar de wachtlijst. */
+export async function cancelBooking(entryId: string, token: string): Promise<'offered' | 'free'> {
+  const { data, error } = await supabase.rpc('cancel_booking', {
+    p_entry: entryId,
+    p_token: token,
+  })
+  if (error) throw error
+  return data === 'offered' ? 'offered' : 'free'
+}

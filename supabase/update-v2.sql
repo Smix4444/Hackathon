@@ -352,13 +352,55 @@ begin
     (v_salon, t_brush, 'Lien',  array[v_tmr_dow], '13:00', '18:00', 30, false, true, now() - interval '5 hours');
 end $$;
 
+-- Klant zegt zijn eigen afspraak af. De plek komt meteen weer vrij en
+-- gaat opnieuw naar iedereen op de wachtlijst die past.
+create or replace function public.cancel_booking(p_entry uuid, p_token uuid)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  e public.waitlist_entries%rowtype;
+  s public.slots%rowtype;
+begin
+  if not public._token_ok(p_entry, p_token) then raise exception 'NOT_YOUR_ENTRY'; end if;
+
+  select * into e from public.waitlist_entries where id = p_entry for update;
+  if not found or e.status <> 'booked' then raise exception 'NO_BOOKING'; end if;
+
+  select * into s from public.slots
+  where filled_by_entry_id = p_entry and status = 'filled'
+  order by starts_at limit 1
+  for update;
+
+  if not found            then raise exception 'NO_BOOKING'; end if;
+  if s.starts_at <= now() then raise exception 'SLOT_IN_PAST'; end if;
+
+  update public.slots set
+    status = 'free', released_at = now(), filled_by_entry_id = null,
+    filled_treatment_id = null, filled_at = null,
+    final_price_cents = null, final_duration_min = null, current_offer_id = null
+  where id = s.id;
+
+  update public.waitlist_entries set status = 'left' where id = p_entry;
+
+  insert into public.events (salon_id, type, slot_id, entry_id, message)
+  values (s.salon_id, 'released', s.id, p_entry,
+          format('%s zegde zelf af voor %s', e.first_name, public._fmt_time(s.starts_at)));
+
+  if public._offer_all(s.id) = 0 then
+    perform public._log_no_match(s.id);
+    return 'free';
+  end if;
+  return 'offered';
+end $$;
+
+
 -- ---------- Rechten ----------
 revoke execute on function public._offer_all(uuid)        from public, anon, authenticated;
 revoke execute on function public._respond(uuid, boolean) from public, anon, authenticated;
 
 grant execute on function
   public.price_for_entry(int, timestamptz, boolean, boolean, int),
-  public.update_salon_settings(text, boolean, int, int)
+  public.update_salon_settings(text, boolean, int, int),
+  public.cancel_booking(uuid, uuid)
 to anon, authenticated;
 
 -- Demo opnieuw opzetten met de nieuwe namen en prijzen.
