@@ -9,7 +9,7 @@ import { WaitingCard } from '../components/customer/WaitingCard'
 import { AppHeader } from '../components/layout/AppHeader'
 import { ActivityFeed } from '../components/salon/ActivityFeed'
 import { AgendaTimeline } from '../components/salon/AgendaTimeline'
-import { DayNavigator } from '../components/salon/DayNavigator'
+import { MonthCalendar } from '../components/salon/MonthCalendar'
 import { ImpactStrip } from '../components/salon/ImpactStrip'
 import { QrCard } from '../components/salon/QrCard'
 import { ReleaseDialog } from '../components/salon/ReleaseDialog'
@@ -27,7 +27,7 @@ import type {
 } from '../domain/types'
 import { useNow } from '../hooks/useNow'
 import { computeImpact } from '../lib/stats'
-import { brusselsDayKey } from '../lib/time'
+import { brusselsDayKey, monthStartKey } from '../lib/time'
 
 /**
  * Alleen in ontwikkeling: toont elk scherm met nepdata, zodat het ontwerp
@@ -240,14 +240,16 @@ export default function PreviewPage() {
         <div className="grid gap-12 lg:grid-cols-[2fr_1fr] lg:gap-10">
           <section className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <h3 className="text-xl">Agenda</h3>
-              <DayNavigator
-                dayKey={dayKey}
-                now={nowTick}
-                count={slots.length}
-                onChange={setDayKey}
-              />
+              <h3 className="text-xl">Afspraken van de gekozen dag</h3>
             </div>
+            <MonthCalendar
+              monthKey={monthStartKey(dayKey)}
+              selectedDay={dayKey}
+              slots={slots}
+              now={nowTick}
+              onSelectDay={setDayKey}
+              onChangeMonth={() => undefined}
+            />
             <AgendaTimeline
               slots={slots}
               salon={salon}

@@ -162,3 +162,61 @@ export function brusselsMidnight(dayKey: string): Date {
 export function brusselsDayStart(now: Date, offsetDays: number): Date {
   return brusselsMidnight(shiftDayKey(brusselsDayKey(now), offsetDays))
 }
+
+const MONTH_LONG = [
+  'januari', 'februari', 'maart', 'april', 'mei', 'juni',
+  'juli', 'augustus', 'september', 'oktober', 'november', 'december',
+]
+
+/** Dagsleutel van de eerste dag van de maand waarin `dayKey` valt. */
+export function monthStartKey(dayKey: string): string {
+  return `${dayKey.slice(0, 7)}-01`
+}
+
+/** "november 2026" */
+export function monthLabel(dayKey: string): string {
+  const [y, m] = dayKey.split('-').map(Number)
+  return `${MONTH_LONG[m - 1]} ${y}`
+}
+
+/** Maanden opschuiven, bv. shiftMonth('2026-11-01', 1) -> '2026-12-01'. */
+export function shiftMonth(dayKey: string, months: number): string {
+  const [y, m] = dayKey.split('-').map(Number)
+  const next = new Date(Date.UTC(y, m - 1 + months, 1))
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`
+}
+
+/** Dag opschuiven. */
+export function shiftDay(dayKey: string, days: number): string {
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const next = new Date(Date.UTC(y, m - 1, d + days))
+  const mm = String(next.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(next.getUTCDate()).padStart(2, '0')
+  return `${next.getUTCFullYear()}-${mm}-${dd}`
+}
+
+/** Hoort deze dagsleutel bij de maand van `monthKey`? */
+export function isSameMonth(dayKey: string, monthKey: string): boolean {
+  return dayKey.slice(0, 7) === monthKey.slice(0, 7)
+}
+
+/** Dagnummer zonder voorloopnul, voor in een kalendervakje. */
+export function dayOfMonth(dayKey: string): number {
+  return Number(dayKey.slice(8, 10))
+}
+
+/**
+ * Volle weken (maandag eerst) die de maand van `monthKey` bedekken,
+ * inclusief de dagen van de vorige en volgende maand die de weken aanvullen.
+ */
+export function monthGridDays(monthKey: string): string[] {
+  const first = monthStartKey(monthKey)
+  const [y, m] = first.split('-').map(Number)
+  const firstDow = new Date(Date.UTC(y, m - 1, 1)).getUTCDay() // 0 = zondag
+  const lead = (firstDow + 6) % 7 // maandag eerst
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const total = Math.ceil((lead + daysInMonth) / 7) * 7
+
+  const start = shiftDay(first, -lead)
+  return Array.from({ length: total }, (_, i) => shiftDay(start, i))
+}

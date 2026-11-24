@@ -1,5 +1,5 @@
 import { CalendarCheck, Hourglass } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 
@@ -25,7 +25,7 @@ import { useSalon } from '../hooks/useSalon'
 import { useSlots } from '../hooks/useSlots'
 import { useWaitlist } from '../hooks/useWaitlist'
 import { codeOfError, messageForError } from '../lib/errors'
-import { formatDayLabel, formatEuro, formatTime } from '../lib/time'
+import { brusselsDayKey, brusselsDayStart, formatDayLabel, formatEuro, formatTime } from '../lib/time'
 import { acceptOffer, declineOffer } from '../services/offerService'
 import { claimFreeSlot } from '../services/slotService'
 import { isSupabaseConfigured } from '../services/supabase'
@@ -40,7 +40,9 @@ export function CustomerPage() {
     useSalon(slug)
   const salonId = salon?.id ?? null
 
-  const slots = useSlots(salonId)
+  const windowStart = useMemo(() => brusselsDayStart(new Date(), 0), [brusselsDayKey(now)])
+  const windowEnd = useMemo(() => brusselsDayStart(new Date(), 14), [brusselsDayKey(now)])
+  const slots = useSlots(salonId, windowStart, windowEnd)
   const waitlist = useWaitlist(salonId)
   const my = useMyEntries(slug)
 

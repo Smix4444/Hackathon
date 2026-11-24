@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   brusselsDayKey,
   brusselsDayStart,
+  dayOfMonth,
+  isSameMonth,
+  monthGridDays,
+  monthLabel,
+  monthStartKey,
+  shiftDay,
+  shiftMonth,
   formatCountdown,
   formatDayLabel,
   formatDuration,
@@ -133,5 +140,46 @@ describe('brusselsDayStart', () => {
     const start = brusselsDayStart(new Date('2026-03-29T12:00:00Z'), 0)
     expect(formatTime(start)).toBe('00:00')
     expect(brusselsDayKey(start)).toBe('2026-03-29')
+  })
+})
+
+describe('maandhulpjes', () => {
+  it('geeft het begin van de maand', () => {
+    expect(monthStartKey('2026-11-24')).toBe('2026-11-01')
+  })
+
+  it('schrijft de maand voluit', () => {
+    expect(monthLabel('2026-11-24')).toBe('november 2026')
+    expect(monthLabel('2027-01-03')).toBe('januari 2027')
+  })
+
+  it('schuift maanden op over een jaargrens', () => {
+    expect(shiftMonth('2026-11-01', 1)).toBe('2026-12-01')
+    expect(shiftMonth('2026-12-01', 1)).toBe('2027-01-01')
+    expect(shiftMonth('2026-01-01', -1)).toBe('2025-12-01')
+  })
+
+  it('schuift dagen op over een maandgrens', () => {
+    expect(shiftDay('2026-11-30', 1)).toBe('2026-12-01')
+    expect(shiftDay('2026-03-01', -1)).toBe('2026-02-28')
+  })
+
+  it('bouwt volle weken die maandag beginnen', () => {
+    const grid = monthGridDays('2026-11-01')
+    expect(grid.length % 7).toBe(0)
+    // 1 november 2026 is een zondag, dus de week begint op 26 oktober
+    expect(grid[0]).toBe('2026-10-26')
+    expect(grid).toContain('2026-11-30')
+    expect(isSameMonth(grid[0], '2026-11-01')).toBe(false)
+    expect(isSameMonth('2026-11-24', '2026-11-01')).toBe(true)
+  })
+
+  it('bedekt een maand die op maandag begint zonder extra week ervoor', () => {
+    const grid = monthGridDays('2026-06-01')
+    expect(grid[0]).toBe('2026-06-01')
+  })
+
+  it('leest het dagnummer', () => {
+    expect(dayOfMonth('2026-11-07')).toBe(7)
   })
 })

@@ -6,7 +6,7 @@ import { AppHeader } from '../components/layout/AppHeader'
 import { PageShell } from '../components/layout/PageShell'
 import { ActivityFeed } from '../components/salon/ActivityFeed'
 import { AgendaTimeline } from '../components/salon/AgendaTimeline'
-import { DAYS_AHEAD, DayNavigator, offsetFromToday } from '../components/salon/DayNavigator'
+import { MonthCalendar } from '../components/salon/MonthCalendar'
 import { ImpactStrip } from '../components/salon/ImpactStrip'
 import { QrCard } from '../components/salon/QrCard'
 import { ReleaseDialog } from '../components/salon/ReleaseDialog'
@@ -27,11 +27,23 @@ import { useSlots } from '../hooks/useSlots'
 import { useWaitlist } from '../hooks/useWaitlist'
 import { messageForError } from '../lib/errors'
 import { computeImpact } from '../lib/stats'
-import { brusselsDayKey } from '../lib/time'
+import {
+  brusselsDayKey,
+  brusselsMidnight,
+  formatDayLabel,
+  monthGridDays,
+  monthStartKey,
+  shiftDay,
+} from '../lib/time'
 import { simulateResponse } from '../services/offerService'
 import { releaseSlot } from '../services/slotService'
 import { isSupabaseConfigured } from '../services/supabase'
 import { setVip } from '../services/waitlistService'
+
+/** "vandaag" -> "Vandaag", voor aan het begin van een kop. */
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
 
 export function DashboardPage() {
   const { slug = DEMO_SLUG } = useParams()
@@ -47,7 +59,25 @@ export function DashboardPage() {
   } = useSalon(slug)
   const salonId = salon?.id ?? null
 
-  const slots = useSlots(salonId)
+  // De zichtbare maand plus vandaag, zodat de impactstrook blijft kloppen
+  // terwijl je door de maanden bladert.
+  const todayAnchor = brusselsDayKey(now)
+  const monthAnchor = params.get('dag') ?? todayAnchor
+  const gridRange = useMemo(() => {
+    const grid = monthGridDays(monthStartKey(monthAnchor))
+    const first = brusselsMidnight(grid[0])
+    const last = brusselsMidnight(shiftDay(grid[grid.length - 1], 1))
+    const todayStart = brusselsMidnight(todayAnchor)
+    const todayEnd = brusselsMidnight(shiftDay(todayAnchor, 2))
+    return {
+      from: first < todayStart ? first : todayStart,
+      to: last > todayEnd ? last : todayEnd,
+    }
+  }, [monthAnchor, todayAnchor])
+  const windowStart = gridRange.from
+  const windowEnd = gridRange.to
+
+  const slots = useSlots(salonId, windowStart, windowEnd)
   const waitlist = useWaitlist(salonId)
   const offers = useOffers(salonId)
   const events = useEvents(salonId)
@@ -79,17 +109,21 @@ export function DashboardPage() {
 
   const todayKey = brusselsDayKey(now)
   const requested = params.get('dag')
-  const dayKey = useMemo(() => {
-    if (!requested || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return todayKey
-    const offset = offsetFromToday(requested, now)
-    if (offset < 0 || offset >= DAYS_AHEAD) return todayKey
-    return requested
-    // `now` tikt elke seconde; alleen de dag zelf telt hier.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requested, todayKey])
+  const dayKey =
+    requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : todayKey
+
+  const [monthKey, setMonthKey] = useState(() => monthStartKey(dayKey))
 
   const daySlots = slots.slots.filter((slot) => brusselsDayKey(new Date(slot.starts_at)) === dayKey)
   const impact = computeImpact(slots.slots, now)
+
+  function selectDay(next: string) {
+    const nextParams = new URLSearchParams(params)
+    if (next === todayKey) nextParams.delete('dag')
+    else nextParams.set('dag', next)
+    setParams(nextParams, { replace: true })
+    setMonthKey(monthStartKey(next))
+  }
 
   async function confirmRelease() {
     if (!releasing) return
@@ -171,23 +205,29 @@ export function DashboardPage() {
             <ImpactStrip impact={impact} />
 
             <div className="grid gap-12 lg:grid-cols-[2fr_1fr] lg:gap-10">
-              <section aria-labelledby="agenda-kop" className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <h2 id="agenda-kop" className="text-xl">
-                    Agenda
-                  </h2>
-                  <DayNavigator
-                    dayKey={dayKey}
-                    now={now}
-                    count={daySlots.length}
-                    onChange={(next) => {
-                      const nextParams = new URLSearchParams(params)
-                      if (next === todayKey) nextParams.delete('dag')
-                      else nextParams.set('dag', next)
-                      setParams(nextParams, { replace: true })
-                    }}
-                  />
-                </div>
+              <div className="flex flex-col gap-10">
+                <MonthCalendar
+                  monthKey={monthKey}
+                  selectedDay={dayKey}
+                  slots={slots.slots}
+                  now={now}
+                  onSelectDay={selectDay}
+                  onChangeMonth={setMonthKey}
+                />
+
+                <section aria-labelledby="agenda-kop" className="flex flex-col gap-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <h2 id="agenda-kop" className="text-xl">
+                      {capitalise(formatDayLabel(brusselsMidnight(dayKey), now))}
+                    </h2>
+                    <p data-numeric className="text-ink-soft">
+                      {daySlots.length === 0
+                        ? 'Geen afspraken'
+                        : daySlots.length === 1
+                          ? '1 afspraak'
+                          : `${daySlots.length} afspraken`}
+                    </p>
+                  </div>
 
                 {slots.status === 'loading' ? <SkeletonAgenda /> : null}
                 {slots.status === 'error' ? (
@@ -206,7 +246,8 @@ export function DashboardPage() {
                     onSimulate={onSimulate}
                   />
                 ) : null}
-              </section>
+                </section>
+              </div>
 
               <div className="flex flex-col gap-12">
                 <QrCard slug={slug} />

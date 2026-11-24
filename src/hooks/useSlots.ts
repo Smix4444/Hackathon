@@ -1,23 +1,19 @@
-import { brusselsDayStart } from '../lib/time'
 import type { Slot } from '../domain/types'
 import { listSlots } from '../services/slotService'
 import { useAsync } from './useAsync'
 
-/** Vanaf vandaag zoveel dagen vooruit ophalen. */
-export const SLOT_WINDOW_DAYS = 14
+/**
+ * Slots in een vrij te kiezen venster. Het dashboard vraagt de zichtbare
+ * maand op, plus vandaag, zodat de impactstrook blijft kloppen als je
+ * door de maanden bladert.
+ */
+export function useSlots(salonId: string | null, from: Date, to: Date) {
+  const fromIso = from.toISOString()
+  const toIso = to.toISOString()
 
-/** Alle slots van vandaag tot en met twee weken vooruit (Brusselse dagen). */
-export function useSlots(salonId: string | null) {
   const state = useAsync<Slot[]>(
-    () => {
-      const now = new Date()
-      return listSlots(
-        salonId as string,
-        brusselsDayStart(now, 0),
-        brusselsDayStart(now, SLOT_WINDOW_DAYS),
-      )
-    },
-    [salonId],
+    () => listSlots(salonId as string, new Date(fromIso), new Date(toIso)),
+    [salonId, fromIso, toIso],
     Boolean(salonId),
   )
 
