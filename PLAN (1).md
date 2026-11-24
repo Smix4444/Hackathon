@@ -1056,7 +1056,7 @@ Op dashboard én klantpagina: elke seconde (via `useNow`) controleren of een zic
 - **SuccessView (S3):** confetti, *"Geregeld. Tot vandaag om 15:45."*, *"Je bent 13 dagen sneller geholpen dan normaal."*, prijs, **Zet in mijn agenda** (.ics-download), *Terug naar Studio Noor*.
 
 ### Toegankelijkheid (geldt overal)
-- `:focus-visible { outline: 3px solid var(--color-ink); outline-offset: 3px; }`; op donkere knoppen witte ring met ink-offset. Nooit `outline: none` zonder vervanging.
+- `:focus-visible { outline: 3px solid var(--color-blue); outline-offset: 3px; }`; op blauwe vlakken een witte ring. Nooit `outline: none` zonder vervanging.
 - Skip-link *"Naar inhoud"*. Eén `<h1>` per pagina, logische koppen.
 - Alles bedienbaar met Tab/Shift+Tab/Enter/Spatie/Esc/pijltjes (tabs, segmented control).
 - Native `<dialog>` voor focus trap en Esc. Focus terug naar de knop die de dialoog opende.

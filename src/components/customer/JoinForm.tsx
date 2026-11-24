@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { LEAD_OPTIONS, joinSchema } from '../../domain/schemas'
 import type { Treatment } from '../../domain/types'
@@ -53,8 +53,56 @@ export function JoinForm({
   })
   const [errors, setErrors] = useState<Errors>({})
 
+  // C3: alleen zichtbaar als de server een sleutel heeft.
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [aiText, setAiText] = useState('')
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiFilled, setAiFilled] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/parse-availability')
+      .then((response) => {
+        if (alive) setAiEnabled(response.status === 204)
+      })
+      .catch(() => {
+        if (alive) setAiEnabled(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   function set<K extends keyof JoinValues>(key: K, value: JoinValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
+  }
+
+  async function fillFromText() {
+    if (aiText.trim().length === 0) return
+    setAiBusy(true)
+    setAiError(null)
+    try {
+      const response = await fetch('/api/parse-availability', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: aiText.slice(0, 200) }),
+      })
+      if (!response.ok) throw new Error('mislukt')
+      const data = (await response.json()) as { days: number[]; from: string; to: string }
+      setValues((current) => ({
+        ...current,
+        days: [...data.days].sort((a, b) => a - b),
+        timeFrom: data.from,
+        timeTo: data.to,
+      }))
+      setAiFilled(true)
+      window.setTimeout(() => setAiFilled(false), 2500)
+    } catch {
+      setAiError('Dat lukte niet. Vul je dagen en uren hieronder zelf in.')
+    } finally {
+      setAiBusy(false)
+    }
   }
 
   function submit(event: React.FormEvent) {
@@ -118,6 +166,40 @@ export function JoinForm({
           </Select>
         )}
       </Field>
+
+      {aiEnabled ? (
+        <div className="flex flex-col gap-2 rounded-block border border-line bg-surface p-4">
+          <Field
+            id="wanneer"
+            label="Typ wanneer je kan"
+            hint="Bijvoorbeeld: dinsdag of donderdag na vijf."
+            error={aiError ?? undefined}
+          >
+            {(props) => (
+              <div className="flex flex-wrap items-center gap-2">
+                <TextInput
+                  {...props}
+                  value={aiText}
+                  maxLength={200}
+                  onChange={(event) => setAiText(event.target.value)}
+                  className="min-w-0 flex-1"
+                />
+                <Button
+                  variant="secondary"
+                  loading={aiBusy}
+                  disabled={aiText.trim().length === 0 || aiBusy}
+                  onClick={fillFromText}
+                >
+                  Vul in
+                </Button>
+              </div>
+            )}
+          </Field>
+          <p aria-live="polite" className="text-sm text-ink-soft">
+            {aiFilled ? 'Ingevuld hieronder. Controleer het even.' : null}
+          </p>
+        </div>
+      ) : null}
 
       <Field
         id="dagen"
