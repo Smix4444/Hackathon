@@ -24,7 +24,7 @@ export function App() {
           unstyled: true,
           classNames: {
             toast:
-              'flex w-full items-start gap-3 rounded-full border border-line bg-bg px-5 py-3 text-base text-ink shadow-[0_8px_24px_rgba(14,27,61,0.10)]',
+              'flex w-full items-start gap-3 rounded-full border border-ink bg-bg px-5 py-3 text-base text-ink',
             title: 'font-bold',
             description: 'text-ink-soft',
           },
