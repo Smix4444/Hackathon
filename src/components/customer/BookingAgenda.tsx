@@ -97,7 +97,7 @@ export function BookingAgenda({
               </span>
               <span className="sr-only">
                 {formatDayLabel(new Date(`${dayKey}T12:00:00Z`), now)},{' '}
-                {count === 0 ? 'geen vrije uren' : `${count} vrije uren`}
+                {count === 0 ? 'geen vrije uren' : count === 1 ? '1 vrij uur' : `${count} vrije uren`}
               </span>
             </button>
           )

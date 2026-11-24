@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { ClaimDialog } from '../components/customer/ClaimDialog'
+import { BookingAgenda } from '../components/customer/BookingAgenda'
 import { FreeNowList } from '../components/customer/FreeNowList'
 import { JoinForm } from '../components/customer/JoinForm'
 import { OfferTakeover } from '../components/customer/OfferTakeover'
@@ -124,6 +125,12 @@ const slots: Slot[] = [
     final_price_cents: 8500,
     final_duration_min: 90,
   }),
+]
+
+const openHours: Slot[] = [
+  slot({ id: 'o-a', starts_at: at(300), ends_at: at(330), status: 'free', customer_name: null }),
+  slot({ id: 'o-b', starts_at: at(345), ends_at: at(390), status: 'free', customer_name: null, treatment_id: 't-beard' }),
+  slot({ id: 'o-c', starts_at: at(1500), ends_at: at(1530), status: 'free', customer_name: null }),
 ]
 
 const offers: Offer[] = [
@@ -298,6 +305,14 @@ export default function PreviewPage() {
               treatment={treatments[0]}
               busy={false}
               onLeave={() => undefined}
+            />
+
+            <BookingAgenda
+              slots={[...slots, ...openHours]}
+              treatments={treatments}
+              salon={salon}
+              now={nowTick}
+              onBook={setClaiming}
             />
 
             <FreeNowList
