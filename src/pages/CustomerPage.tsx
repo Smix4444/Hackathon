@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { AppHeader } from '../components/layout/AppHeader'
 import { PageShell } from '../components/layout/PageShell'
+import { BookingAgenda } from '../components/customer/BookingAgenda'
 import { ClaimDialog } from '../components/customer/ClaimDialog'
 import { FreeNowList } from '../components/customer/FreeNowList'
 import { JoinForm, type JoinValues } from '../components/customer/JoinForm'
@@ -42,7 +43,7 @@ export function CustomerPage() {
   const salonId = salon?.id ?? null
 
   const windowStart = useMemo(() => brusselsDayStart(new Date(), 0), [brusselsDayKey(now)])
-  const windowEnd = useMemo(() => brusselsDayStart(new Date(), 14), [brusselsDayKey(now)])
+  const windowEnd = useMemo(() => brusselsDayStart(new Date(), 21), [brusselsDayKey(now)])
   const slots = useSlots(salonId, windowStart, windowEnd)
   const waitlist = useWaitlist(salonId)
   const my = useMyEntries(slug)
@@ -370,6 +371,16 @@ export function CustomerPage() {
                 salon={salon}
                 now={now}
                 onClaim={setClaiming}
+              />
+            ) : null}
+
+            {!booking ? (
+              <BookingAgenda
+                slots={slots.slots}
+                treatments={treatments}
+                salon={salon}
+                now={now}
+                onBook={setClaiming}
               />
             ) : null}
           </div>

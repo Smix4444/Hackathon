@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import type { Slot } from '../../domain/types'
+import { isGap } from '../../lib/slots'
 import {
   brusselsDayKey,
   dayOfMonth,
@@ -14,6 +15,9 @@ import {
 
 interface DayInfo {
   booked: number
+  /** Vrijgekomen plekken: iemand zegde af. */
+  gaps: number
+  /** Gewone vrije uren die nog nooit geboekt waren. */
   open: number
   filled: number
 }
@@ -22,9 +26,10 @@ function summarise(slots: Slot[]): Map<string, DayInfo> {
   const byDay = new Map<string, DayInfo>()
   for (const slot of slots) {
     const key = brusselsDayKey(new Date(slot.starts_at))
-    const info = byDay.get(key) ?? { booked: 0, open: 0, filled: 0 }
+    const info = byDay.get(key) ?? { booked: 0, gaps: 0, open: 0, filled: 0 }
     if (slot.status === 'booked') info.booked += 1
     else if (slot.status === 'filled') info.filled += 1
+    else if (isGap(slot)) info.gaps += 1
     else info.open += 1
     byDay.set(key, info)
   }
@@ -113,12 +118,14 @@ export function MonthCalendar({
             const inMonth = isSameMonth(dayKey, monthKey)
             const isToday = dayKey === todayKey
             const isSelected = dayKey === selectedDay
-            const total = (info?.booked ?? 0) + (info?.open ?? 0) + (info?.filled ?? 0)
+            const total =
+              (info?.booked ?? 0) + (info?.gaps ?? 0) + (info?.open ?? 0) + (info?.filled ?? 0)
 
             const label = [
               `${dayOfMonth(dayKey)} ${monthLabel(dayKey)}`,
               total === 0 ? 'geen afspraken' : `${total} afspraken`,
-              info?.open ? `${info.open} open plek` : null,
+              info?.gaps ? `${info.gaps} vrijgekomen plek` : null,
+              info?.open ? `${info.open} vrij uur` : null,
             ]
               .filter(Boolean)
               .join(', ')
@@ -153,9 +160,12 @@ export function MonthCalendar({
 
                 {total > 0 ? (
                   <span aria-hidden="true" className="flex flex-wrap items-center gap-1">
-                    {info?.open ? <span className="size-2 rounded-full bg-free" /> : null}
+                    {info?.gaps ? <span className="size-2 rounded-full bg-free" /> : null}
                     {info?.filled ? <span className="size-2 rounded-full bg-blue" /> : null}
                     {info?.booked ? <span className="size-2 rounded-full bg-ink-soft" /> : null}
+                    {info?.open ? (
+                      <span className="size-2 rounded-full border border-ink-soft" />
+                    ) : null}
                     <span data-numeric className="text-xs text-ink-soft">
                       {total}
                     </span>
@@ -174,7 +184,11 @@ export function MonthCalendar({
         </span>
         <span className="flex items-center gap-2">
           <span aria-hidden="true" className="size-2 rounded-full bg-free" />
-          open plek
+          vrijgekomen plek
+        </span>
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true" className="size-2 rounded-full border border-ink-soft" />
+          vrij uur
         </span>
         <span className="flex items-center gap-2">
           <span aria-hidden="true" className="size-2 rounded-full bg-blue" />

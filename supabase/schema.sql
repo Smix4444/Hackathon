@@ -559,6 +559,158 @@ returns void language sql security definer set search_path = public as $$
   where slug = p_slug;
 $$;
 
+-- Demo opnieuw opbouwen, relatief aan NU.
+-- Vult de vorige maand tot en met twee maanden vooruit: elke dag behalve
+-- zondag een agenda van 09:00 tot 18:00, met geboekte afspraken en vrije
+-- uren die een klant zelf kan boeken. Vandaag start vanaf het volgende uur.
+create or replace function public.reset_demo(p_slug text default 'studio-noor')
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_salon uuid;
+  t_cut uuid; t_beard uuid; t_color uuid; t_brush uuid;
+  v_today    date := (now() at time zone 'Europe/Brussels')::date;
+  v_from     date := (date_trunc('month', v_today::timestamp) - interval '1 month')::date;
+  v_to       date := (date_trunc('month', v_today::timestamp) + interval '3 months' - interval '1 day')::date;
+  v_tomorrow date := v_today + 1;
+  v_tmr_dow  smallint := extract(isodow from v_tomorrow)::smallint;
+  v_names text[] := array['Tom','Milan','Yasmine','Arne','Fatima','Jules','Noah','Lotte',
+                          'Ines','Emma','Lucas','Nora','Elias','Amira','Sofie','Mehdi',
+                          'Lars','Hind','Senne','Rania'];
+  v_day     date;
+  v_cursor  timestamptz;
+  v_close   timestamptz;
+  v_t       uuid;
+  v_dur     int;
+  v_status  text;
+  v_seed    int;
+  i         int;
+begin
+  select id into v_salon from public.salons where slug = p_slug;
+  if v_salon is null then raise exception 'SALON_NOT_FOUND'; end if;
+
+  delete from public.events           where salon_id = v_salon;
+  delete from public.offers           where salon_id = v_salon;
+  delete from public.slots            where salon_id = v_salon;
+  delete from public.waitlist_entries where salon_id = v_salon;
+
+  select id into t_cut   from public.treatments where salon_id = v_salon and name = 'Knippen';
+  select id into t_beard from public.treatments where salon_id = v_salon and name = 'Knippen en baard';
+  select id into t_color from public.treatments where salon_id = v_salon and name = 'Kleuren';
+  select id into t_brush from public.treatments where salon_id = v_salon and name = 'Brushing';
+
+  v_day := v_from;
+  while v_day <= v_to loop
+    -- Zondag gesloten.
+    if extract(isodow from v_day) <> 7 then
+      v_seed := extract(doy from v_day)::int;
+
+      if v_day = v_today then
+        v_cursor := date_trunc('hour', now()) + interval '1 hour';
+      else
+        v_cursor := (v_day + time '09:00') at time zone 'Europe/Brussels';
+      end if;
+      v_close := (v_day + time '18:00') at time zone 'Europe/Brussels';
+
+      i := 0;
+      while v_cursor < v_close loop
+        i := i + 1;
+        v_t := case ((v_seed + i) % 5)
+                 when 0 then t_color
+                 when 1 then t_beard
+                 when 2 then t_brush
+                 else t_cut
+               end;
+        select duration_min into v_dur from public.treatments where id = v_t;
+        exit when v_cursor + make_interval(mins => v_dur) > v_close;
+
+        -- Alles in het verleden is geboekt geweest; vooruit laten we
+        -- ongeveer een kwart van de uren vrij om te boeken.
+        if v_cursor < now() then
+          v_status := 'booked';
+        elsif ((v_seed * 3 + i) % 4) = 0 then
+          v_status := 'free';
+        else
+          v_status := 'booked';
+        end if;
+
+        insert into public.slots
+          (salon_id, treatment_id, starts_at, ends_at, status, customer_name)
+        values
+          (v_salon, v_t, v_cursor, v_cursor + make_interval(mins => v_dur), v_status,
+           case when v_status = 'booked'
+                then v_names[1 + ((v_seed + i) % array_length(v_names, 1))]
+                else null end);
+
+        v_cursor := v_cursor + make_interval(mins => v_dur);
+      end loop;
+    end if;
+    v_day := v_day + 1;
+  end loop;
+
+  -- Demo-wachtlijst: enkel MORGEN beschikbaar, zodat echte (jury-)inschrijvingen
+  -- voor vandaag nooit door demo-klanten worden ingepikt.
+  insert into public.waitlist_entries
+    (salon_id, treatment_id, first_name, email, days, time_from, time_to, lead_minutes, is_vip, is_demo, created_at)
+  values
+    (v_salon, t_cut,   'Sarah', 'sarah@voorbeeld.be', array[v_tmr_dow], '09:00', '13:00', 30, false, true, now() - interval '3 days'),
+    (v_salon, t_color, 'Hanne', 'hanne@voorbeeld.be', array[v_tmr_dow], '09:00', '17:00', 60, false, true, now() - interval '2 days'),
+    (v_salon, t_cut,   'Bilal', 'bilal@voorbeeld.be', array[v_tmr_dow], '10:00', '12:30', 30, true,  true, now() - interval '1 day'),
+    (v_salon, t_brush, 'Lien',  'lien@voorbeeld.be',  array[v_tmr_dow], '13:00', '18:00', 30, false, true, now() - interval '5 hours');
+end $$;
+
+create or replace function public.cancel_booking(p_entry uuid, p_token uuid)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  e public.waitlist_entries%rowtype;
+  s public.slots%rowtype;
+begin
+  if not public._token_ok(p_entry, p_token) then raise exception 'NOT_YOUR_ENTRY'; end if;
+
+  select * into e from public.waitlist_entries where id = p_entry for update;
+  if not found or e.status <> 'booked' then raise exception 'NO_BOOKING'; end if;
+
+  select * into s from public.slots
+  where filled_by_entry_id = p_entry and status = 'filled'
+  order by starts_at limit 1
+  for update;
+
+  if not found            then raise exception 'NO_BOOKING'; end if;
+  if s.starts_at <= now() then raise exception 'SLOT_IN_PAST'; end if;
+
+  update public.slots set
+    status = 'free', released_at = now(), filled_by_entry_id = null,
+    filled_treatment_id = null, filled_at = null,
+    final_price_cents = null, final_duration_min = null, current_offer_id = null
+  where id = s.id;
+
+  update public.waitlist_entries set status = 'left' where id = p_entry;
+
+  insert into public.events (salon_id, type, slot_id, entry_id, message)
+  values (s.salon_id, 'released', s.id, p_entry,
+          format('%s zegde zelf af voor %s', e.first_name, public._fmt_time(s.starts_at)));
+
+  if public._offer_all(s.id) = 0 then
+    perform public._log_no_match(s.id);
+    return 'free';
+  end if;
+  return 'offered';
+end $$;
+
+create or replace function public.set_vip(p_entry uuid, p_vip boolean)
+returns void language sql security definer set search_path = public as $$
+  update public.waitlist_entries set is_vip = p_vip where id = p_entry;
+$$;
+
+create or replace function public.update_salon_settings(
+  p_slug text, p_discount boolean, p_typical_wait_days int, p_vip_discount_pct int)
+returns void language sql security definer set search_path = public as $$
+  update public.salons
+  set last_minute_discount = p_discount,
+      typical_wait_days = p_typical_wait_days,
+      vip_discount_pct = p_vip_discount_pct
+  where slug = p_slug;
+$$;
+
 -- Demo opnieuw opbouwen, relatief aan NU
 create or replace function public.reset_demo(p_slug text default 'studio-noor')
 returns void language plpgsql security definer set search_path = public as $$

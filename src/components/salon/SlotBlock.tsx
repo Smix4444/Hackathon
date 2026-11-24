@@ -2,6 +2,7 @@ import { CalendarCheck, Check, CircleDashed, Hourglass } from 'lucide-react'
 
 import type { Offer, Salon, Slot, Treatment, WaitlistEntry } from '../../domain/types'
 import { nextPriceDrop, priceFor } from '../../lib/pricing'
+import { isGap } from '../../lib/slots'
 import {
   formatDuration,
   formatEuro,
@@ -52,9 +53,13 @@ export function SlotBlock({
     .filter((offer) => entryById.get(offer.entry_id)?.is_demo)
     .slice(0, 2)
 
+  const gap = isGap(slot)
+
   const tone =
     slot.status === 'free'
-      ? 'stripes-free border-free animate-soft-pulse'
+      ? gap
+        ? 'stripes-free border-free animate-soft-pulse'
+        : 'border-dashed border-line bg-bg'
       : slot.status === 'offered'
         ? 'border-offer bg-offer-tint'
         : slot.status === 'filled'
@@ -82,10 +87,21 @@ export function SlotBlock({
 
         {slot.status === 'free' ? (
           <>
-            <h3 className="text-lg text-free-text">Vrije plek</h3>
-            <p className="flex items-center gap-2 text-free-text">
+            <h3 className={['text-lg', gap ? 'text-free-text' : 'text-ink-soft'].join(' ')}>
+              {gap ? 'Vrije plek' : 'Vrij uur'}
+            </h3>
+            <p
+              className={[
+                'flex items-center gap-2',
+                gap ? 'text-free-text' : 'text-ink-soft',
+              ].join(' ')}
+            >
               <CircleDashed aria-hidden="true" className="size-4 shrink-0" />
-              <span>Niemand op de wachtlijst past. De plek staat open voor iedereen.</span>
+              <span>
+                {gap
+                  ? 'Niemand op de wachtlijst past. De plek staat open voor iedereen.'
+                  : `Nog niet geboekt, ${treatment?.name ?? 'behandeling'}`}
+              </span>
             </p>
           </>
         ) : null}

@@ -2,6 +2,7 @@ import { CircleDashed } from 'lucide-react'
 
 import type { Salon, Slot, Treatment } from '../../domain/types'
 import { nextPriceDrop, priceFor } from '../../lib/pricing'
+import { isBookable, isGap } from '../../lib/slots'
 import {
   formatDayLabel,
   formatDuration,
@@ -27,8 +28,10 @@ export function FreeNowList({
   now: Date
   onClaim: (slot: Slot) => void
 }) {
+  // Alleen plekken die vrijkwamen doordat iemand afzegde. Gewone vrije
+  // uren staan in de boekingsagenda, zonder last-minute framing.
   const free = slots
-    .filter((slot) => slot.status === 'free' && new Date(slot.starts_at).getTime() > now.getTime())
+    .filter((slot) => isGap(slot) && isBookable(slot, now))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
 
   const treatmentById = new Map(treatments.map((treatment) => [treatment.id, treatment]))
@@ -41,8 +44,8 @@ export function FreeNowList({
 
       {free.length === 0 ? (
         <EmptyState>
-          Op dit moment is er geen vrije plek. Zet je op de wachtlijst, dan krijg je de eerstvolgende
-          die past.
+          Er is nu geen last-minute plek vrij. Zet je op de wachtlijst, dan krijg je de
+          eerstvolgende die past.
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">
