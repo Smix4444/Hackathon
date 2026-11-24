@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* =========================================================
+   Invaller — ontwerpsysteem (PLAN.md sectie 4)
+   Witte basis, blauw hoofdkleur, koraal en zonnegeel als
+   warme accenten. Geen gradients, geen glow, geen emoji.
+   ========================================================= */
+
+@theme {
+  --color-bg: #ffffff;
+  --color-surface: #f5f8ff;
+  --color-ink: #0e1b3d;
+  --color-ink-soft: #4a5878;
+  --color-line: #dce3f0;
+  --color-blue: #2457e6;
+  --color-blue-dark: #1a3faf;
+  --color-blue-tint: #e8effe;
+  --color-free: #ff6b4a;
+  --color-free-text: #b93815;
+  --color-free-tint: #ffede7;
+  --color-offer: #ffc233;
+  --color-offer-tint: #fff6db;
+  --color-offer-text: #7a4f00;
+  --color-danger: #c62828;
+  --color-danger-tint: #fdecec;
+
+  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", sans-serif;
+  --font-sans: "Atkinson Hyperlegible", sans-serif;
+
+  /* Schaal, ratio 1.25, basis 16px */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-2xl: 1.9375rem;
+  --text-3xl: 2.4375rem;
+  --text-4xl: 3.0625rem;
+
+  --radius-block: 14px;
+  --radius-dialog: 20px;
+
+  --animate-soft-pulse: soft-pulse 1.6s ease-in-out infinite;
+  --animate-rise: rise 250ms ease-out both;
+  --animate-tint-in: tint-in 300ms ease-out both;
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    border-color: var(--color-free);
+  }
+  50% {
+    border-color: color-mix(in oklab, var(--color-free) 40%, white);
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(24px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes tint-in {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--color-bg);
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  /* Tijden en aftellers verspringen nooit */
+  time,
+  output,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-blue);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Op blauwe vlakken een witte ring, anders onzichtbaar */
+  .on-blue :focus-visible,
+  .on-blue:focus-visible {
+    outline-color: #ffffff;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  dialog::backdrop {
+    background-color: color-mix(in oklab, var(--color-ink) 45%, transparent);
+  }
+
+  dialog {
+    color: var(--color-ink);
+  }
+}
+
+@utility stripes-free {
+  /* Diagonale strepen met harde stops: strepen, geen kleurverloop */
+  background-color: var(--color-free-tint);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--color-free) 22%, transparent) 0 6px,
+    transparent 6px 14px
+  );
+}
+
+@utility skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 60;
+
+  &:focus {
+    left: 1rem;
+    top: 1rem;
+    background-color: var(--color-ink);
+    color: #ffffff;
+    padding: 0.75rem 1.25rem;
+    border-radius: 9999px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
